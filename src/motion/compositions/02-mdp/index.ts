@@ -1,9 +1,21 @@
 import type { MotionEntry } from '../../types';
 import { MOTION_THEME } from '../../kit';
+import { MarkovChainWalkMotion } from './MarkovChainWalkMotion';
 import { DiscountedReturnMotion } from './DiscountedReturnMotion';
 import { BellmanBackupMotion } from './BellmanBackupMotion';
 
 export const entries: MotionEntry[] = [
+  {
+    id: 'markov-chain-walk',
+    chapter: '02-mdp',
+    title: 'MDP 状态转移与马尔可夫游走',
+    description: '粒子在学生 MDP 状态图上按转移概率 p(s′|s,a) 游走，状态访问频率逐渐收敛。',
+    component: MarkovChainWalkMotion,
+    durationInFrames: 210,
+    fps: MOTION_THEME.fps,
+    width: MOTION_THEME.width,
+    height: MOTION_THEME.height,
+  },
   {
     id: 'discounted-return',
     chapter: '02-mdp',

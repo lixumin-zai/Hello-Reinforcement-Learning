@@ -6,28 +6,53 @@ icon: 'Network'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { MDPGraphExplorer } from '@/components/docs/02-mdp/MDPGraphExplorer';
+import { MotionPlayer } from '@/components/motion/MotionPlayer';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+为了对序贯决策问题做严格分析和算法设计，我们需要一套统一的数学框架——**马尔可夫决策过程（Markov Decision Process, MDP）**。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+---
+
+## 1. 马尔可夫性质（Markov Property）
+
+当一个状态 $S_t$ 包含了历史轨迹中所有对预测未来有用的信息时，我们称该状态具有**马尔可夫性质**：
+
+$$
+\mathbb{P}(S_{t+1} \mid S_t, A_t) = \mathbb{P}(S_{t+1} \mid S_t, A_t, S_{t-1}, A_{t-1}, \dots, S_0, A_0)
+$$
+
+直观地说：**“已知现在，未来与过去独立。”** 例如在围棋中，当前棋盘上所有黑白子的位置就已经是完整的马尔可夫状态（不需要知道这盘棋前 20 手的落子顺序）；而在打 Atari 砖块游戏时，单张静态截图看不出小球正在往上飞还是往下落，因此需要把最近 4 帧图像堆叠起来才能近似满足马尔可夫性。
+
+---
+
+## 2. 从马尔可夫链到 MDP 五元组
+
+我们可以按“复杂度递增”把马尔可夫模型串成一条链：
+
+1. **马尔可夫链 (MP)**：$(\mathcal{S}, \mathcal{P})$ —— 只有状态与自动转移概率，没有奖励也没有动作；
+2. **马尔可夫奖励过程 (MRP)**：$(\mathcal{S}, \mathcal{P}, \mathcal{R}, \gamma)$ —— 在状态转移上挂上了奖励信号；
+3. **马尔可夫决策过程 (MDP)**：$(\mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma)$ —— 引入智能体的动作选择 $\mathcal{A}$。
+
+其核心动力学由四元条件概率函数完整刻画：
+
+$$
+p(s', r \mid s, a) \doteq \mathbb{P}(S_{t+1} = s', R_{t+1} = r \mid S_t = s, A_t = a)
+$$
+
+且对任意 $(s, a)$ 满足归一化条件 $\sum_{s'\in\mathcal{S}}\sum_{r\in\mathcal{R}} p(s', r \mid s, a) = 1$。
+
+### 🎬 Remotion 动作讲解：MDP 状态图游走与访问频率
+
+<MotionPlayer id="markov-chain-walk" />
+
+### 📊 交互实验：亲手探索「学生 MDP」
+
+<MDPGraphExplorer />
+
+<Callout type="info" title="如果智能体看不全状态怎么办？(POMDP)">
+  当智能体只能看到带噪声或局部的观测 $O_t \sim O(o \mid S_t)$ 时，问题变为**部分可观测马尔可夫决策过程 (POMDP)**。工程上常通过循环神经网络 (RNN/Transformer) 维护历史隐状态，或维护关于真实状态的信念分布 $b_t(s)$，将其重新转化为马尔可夫状态。
 </Callout>
 
-## 本节知识点
-
-- 马尔可夫链 → 马尔可夫奖励过程 → MDP
-- 转移概率 P(s'|s,a)
-- 马尔可夫性：未来只依赖当前
-- 部分可观测 POMDP 简介
-
-## 规划的交互组件
-
-- **`<MDPGraphExplorer />`**：可交互的 MDP 状态转移图（学生 MDP），点击动作查看概率分支并采样轨迹
-
-## 规划的动效讲解
-
-- 🎬 **`markov-chain-walk`**：一个粒子在马尔可夫链上随机游走，状态访问频率条形图逐渐收敛
-
 <Cards>
-  <Card title="下一节：回报与折扣因子" href="/docs/02-mdp/02-return-discount" />
+  <Card title="下一节：回报与折扣因子" href="/docs/02-mdp/02-return-discount" description="为什么要引入折扣因子 γ？它如何控制智能体的规划视野？" />
 </Cards>
