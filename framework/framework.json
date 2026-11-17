@@ -1,0 +1,938 @@
+{
+  "project": "Hello Reinforcement Learning",
+  "language": "zh-CN",
+  "audience": "有编程基础、想系统掌握强化学习的工程师与学生（线性代数 / 概率 / Python 入门即可）",
+  "principles": [
+    "先直觉、后公式、再代码：每个知识点按「现象 → 直觉 → 数学 → 算法 → 实验」展开",
+    "所有算法都能在浏览器里跑：交互组件调用 src/lib/rl 中的同一套确定性实现",
+    "动效讲解（Remotion）负责“过程”，交互组件负责“参数”，正文负责“为什么”",
+    "统一符号表：S/A/R/γ/π/V/Q/G/δ/α/ε/θ/w，见 00 符号约定"
+  ],
+  "chapters": [
+    {
+      "id": "01-introduction",
+      "title": "第一部分：强化学习导论",
+      "icon": "Compass",
+      "description": "什么是强化学习，它和监督学习有何不同，以及它为什么重要。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "什么是强化学习",
+          "description": "从试错中学习：智能体、环境、奖励三要素。",
+          "icon": "Compass",
+          "points": ["试错学习与延迟奖励", "智能体-环境交互循环", "奖励假设（Reward Hypothesis）", "一个直观例子：训练小狗与玩游戏"],
+          "components": [
+            { "name": "AgentEnvLoop", "idea": "可点击单步推进的 agent-environment 交互循环，展示 S_t → A_t → R_{t+1}, S_{t+1}" }
+          ],
+          "motions": [
+            { "id": "agent-env-loop", "idea": "智能体观察状态、做出动作、环境返回奖励与新状态的循环动画（开场主视觉）" }
+          ]
+        },
+        {
+          "slug": "02-ml-paradigms",
+          "title": "三大学习范式对比",
+          "description": "监督学习、无监督学习与强化学习的本质区别。",
+          "icon": "GitCompare",
+          "points": ["数据来源：标签 vs 结构 vs 交互", "反馈形式：即时正确答案 vs 评价性信号", "i.i.d. 假设被打破", "探索与利用的独特困境"],
+          "components": [
+            { "name": "ParadigmComparison", "idea": "Tab 切换三种范式，同一任务（如下棋）在三种范式下如何建模" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "03-history",
+          "title": "强化学习简史",
+          "description": "从巴甫洛夫到 AlphaGo，再到 RLHF 与推理模型。",
+          "icon": "History",
+          "points": ["心理学与最优控制两条源头", "TD-Gammon（1992）", "DQN 玩 Atari（2013/2015）", "AlphaGo / AlphaZero / MuZero", "RLHF 与 ChatGPT，GRPO 与推理模型"],
+          "components": [
+            { "name": "RLTimeline", "idea": "可横向滚动、点击展开的里程碑时间线" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "04-applications",
+          "title": "应用全景图",
+          "description": "游戏、机器人、推荐、芯片设计、大模型对齐……",
+          "icon": "Globe",
+          "points": ["游戏与博弈", "机器人与连续控制", "推荐系统与广告", "运筹优化与芯片布局", "大语言模型后训练"],
+          "components": [
+            { "name": "ApplicationMap", "idea": "应用卡片网格：悬停显示状态/动作/奖励分别是什么" }
+          ],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "02-mdp",
+      "title": "第二部分：马尔可夫决策过程",
+      "icon": "Network",
+      "description": "强化学习的数学语言：MDP、回报、策略与价值函数、Bellman 方程。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "状态、动作与马尔可夫性",
+          "description": "MDP 五元组 (S, A, P, R, γ) 与马尔可夫性质。",
+          "icon": "Network",
+          "points": ["马尔可夫链 → 马尔可夫奖励过程 → MDP", "转移概率 P(s'|s,a)", "马尔可夫性：未来只依赖当前", "部分可观测 POMDP 简介"],
+          "components": [
+            { "name": "MDPGraphExplorer", "idea": "可交互的 MDP 状态转移图（学生 MDP），点击动作查看概率分支并采样轨迹" }
+          ],
+          "motions": [
+            { "id": "markov-chain-walk", "idea": "一个粒子在马尔可夫链上随机游走，状态访问频率条形图逐渐收敛" }
+          ]
+        },
+        {
+          "slug": "02-return-discount",
+          "title": "回报与折扣因子",
+          "description": "为什么要折扣？γ 如何决定智能体的“远见”。",
+          "icon": "Percent",
+          "points": ["回报 G_t 的定义", "折扣因子 γ 的三种解释", "分幕式 vs 持续式任务", "有效视野 1/(1-γ)"],
+          "components": [
+            { "name": "DiscountSlider", "idea": "拖动 γ，实时显示未来奖励的权重衰减柱状图与 G_t 值" }
+          ],
+          "motions": [
+            { "id": "discounted-return", "idea": "奖励序列逐个乘以 γ^k 缩小并汇聚成 G_t 的动画" }
+          ]
+        },
+        {
+          "slug": "03-policy-value",
+          "title": "策略与价值函数",
+          "description": "π(a|s)、V^π(s)、Q^π(s,a) 的含义与关系。",
+          "icon": "Target",
+          "points": ["确定性策略与随机策略", "状态价值函数 V^π", "动作价值函数 Q^π", "V 与 Q 的相互表示"],
+          "components": [
+            { "name": "GridPolicyValueViewer", "idea": "网格世界中切换策略，显示每格的 V 值热力图与策略箭头" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "04-bellman",
+          "title": "Bellman 方程",
+          "description": "价值函数的递归结构：期望方程与最优方程。",
+          "icon": "Sigma",
+          "points": ["Bellman 期望方程推导", "备份图（Backup Diagram）", "Bellman 最优方程", "最优策略的存在性"],
+          "components": [
+            { "name": "BackupDiagram", "idea": "可展开的 V/Q 备份图，点击节点高亮对应的公式项" }
+          ],
+          "motions": [
+            { "id": "bellman-backup", "idea": "从叶子节点向根节点“回传”价值的 Bellman 备份动画，公式同步高亮" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03-bandits",
+      "title": "第三部分：多臂老虎机",
+      "icon": "Dices",
+      "description": "最简单的强化学习问题：探索与利用的权衡。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "探索与利用",
+          "description": "k 臂老虎机问题与动作价值估计。",
+          "icon": "Dices",
+          "points": ["k 臂老虎机定义", "样本平均与增量更新", "遗憾（Regret）", "贪心为什么会失败"],
+          "components": [
+            { "name": "BanditPlayground", "idea": "手动拉动 10 个老虎机臂，显示估计值与真实分布，统计累计奖励与遗憾" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "02-epsilon-greedy",
+          "title": "ε-贪心与乐观初值",
+          "description": "最朴素但有效的探索策略。",
+          "icon": "Shuffle",
+          "points": ["ε-greedy 算法", "ε 衰减", "乐观初始值", "非平稳问题与常数步长"],
+          "components": [
+            { "name": "EpsilonGreedyRace", "idea": "多个 ε 值的智能体并行运行，实时绘制平均奖励与最优动作比例曲线" }
+          ],
+          "motions": [
+            { "id": "epsilon-greedy-choice", "idea": "每一步掷骰决定探索或利用，选中的臂发光，估计值柱逐步更新" }
+          ]
+        },
+        {
+          "slug": "03-ucb-thompson",
+          "title": "UCB 与 Thompson 采样",
+          "description": "基于不确定性的“聪明”探索。",
+          "icon": "TrendingUp",
+          "points": ["面对不确定性的乐观原则", "UCB1 公式与置信上界", "Beta-Bernoulli Thompson Sampling", "三种策略的遗憾对比"],
+          "components": [
+            { "name": "UCBVisualizer", "idea": "每个臂显示估计值 + 置信区间条，单步观察 UCB 选择哪一臂" },
+            { "name": "ThompsonBetaViewer", "idea": "Beta 分布曲线随观测更新，采样点决定选择" }
+          ],
+          "motions": [
+            { "id": "ucb-confidence", "idea": "置信区间随拉动次数收缩、上界最高的臂被选中的动画" }
+          ]
+        },
+        {
+          "slug": "04-contextual",
+          "title": "梯度老虎机与上下文老虎机",
+          "description": "从偏好到上下文：通往完整 RL 的桥梁。",
+          "icon": "Layers",
+          "points": ["梯度老虎机与 softmax 偏好", "上下文老虎机（LinUCB）", "在推荐系统中的应用", "与完整 MDP 的区别"],
+          "components": [
+            { "name": "SoftmaxPreference", "idea": "调整偏好值 H(a) 与温度，观察 softmax 概率分布变化" }
+          ],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "04-dynamic-programming",
+      "title": "第四部分：动态规划",
+      "icon": "Grid3x3",
+      "description": "已知模型时求解 MDP：策略评估、策略迭代、价值迭代。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "策略评估",
+          "description": "迭代求解 V^π：Bellman 期望方程的不动点。",
+          "icon": "Calculator",
+          "points": ["迭代策略评估算法", "同步 vs 原地更新", "收敛性：压缩映射", "网格世界示例"],
+          "components": [
+            { "name": "PolicyEvaluationStepper", "idea": "网格世界中逐次扫描更新 V 值，显示每轮的最大变化量 Δ" }
+          ],
+          "motions": [
+            { "id": "policy-evaluation-sweep", "idea": "价值像水波一样从终点向外扩散的扫描动画" }
+          ]
+        },
+        {
+          "slug": "02-policy-iteration",
+          "title": "策略迭代",
+          "description": "评估 → 改进 → 评估……直到策略稳定。",
+          "icon": "RefreshCw",
+          "points": ["策略改进定理", "贪心策略改进", "策略迭代算法", "为什么收敛得很快"],
+          "components": [
+            { "name": "PolicyIterationLab", "idea": "交替执行评估与改进，箭头与热力图同步变化" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "03-value-iteration",
+          "title": "价值迭代",
+          "description": "把评估截断成一步：Bellman 最优备份。",
+          "icon": "Zap",
+          "points": ["价值迭代算法", "与策略迭代的关系", "异步动态规划", "复杂度与维度灾难"],
+          "components": [
+            { "name": "ValueIterationGrid", "idea": "可编辑墙/陷阱/目标的网格世界，逐步运行价值迭代" }
+          ],
+          "motions": [
+            { "id": "value-iteration-grid", "idea": "网格价值迭代：每次扫描热力图加深、策略箭头逐步对齐最优路径" }
+          ]
+        },
+        {
+          "slug": "04-gpi",
+          "title": "广义策略迭代",
+          "description": "贯穿整个强化学习的统一视角。",
+          "icon": "Infinity",
+          "points": ["GPI 的双向拉扯图", "评估与改进的竞争与合作", "后续所有算法都是 GPI 的实例"],
+          "components": [
+            { "name": "GPIDiagram", "idea": "V 与 π 两条线之间折线逼近最优点的交互示意图" }
+          ],
+          "motions": [
+            { "id": "gpi-zigzag", "idea": "评估/改进两条约束线之间锯齿状收敛到 (V*, π*) 的动画" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "05-monte-carlo",
+      "title": "第五部分：蒙特卡洛方法",
+      "icon": "Dice5",
+      "description": "无模型学习的第一步：用完整回合的样本回报估计价值。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "蒙特卡洛预测",
+          "description": "用平均回报估计 V^π。",
+          "icon": "Dice5",
+          "points": ["从经验中学习", "首次访问 vs 每次访问 MC", "增量式均值", "21 点（Blackjack）示例"],
+          "components": [
+            { "name": "MCPredictionDemo", "idea": "生成一条轨迹，逐步回溯计算每个状态的 G，并更新均值" }
+          ],
+          "motions": [
+            { "id": "mc-return-backtrack", "idea": "回合结束后从终点反向累加回报 G 并写入访问过的状态" }
+          ]
+        },
+        {
+          "slug": "02-mc-control",
+          "title": "蒙特卡洛控制",
+          "description": "探索性起点与 ε-soft 策略。",
+          "icon": "Gamepad2",
+          "points": ["估计 Q 而不是 V", "探索性起点（Exploring Starts）", "on-policy ε-soft MC 控制", "GLIE 条件"],
+          "components": [
+            { "name": "BlackjackPolicy", "idea": "Blackjack 策略表（玩家点数 × 庄家明牌），随训练回合数变化" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "03-importance-sampling",
+          "title": "离策略与重要性采样",
+          "description": "用行为策略的数据评估目标策略。",
+          "icon": "Scale",
+          "points": ["目标策略与行为策略", "重要性采样比 ρ", "普通 vs 加权重要性采样", "方差问题"],
+          "components": [
+            { "name": "ImportanceSamplingLab", "idea": "调整两个策略的差异，比较普通/加权 IS 估计的收敛曲线与方差" }
+          ],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "06-temporal-difference",
+      "title": "第六部分：时序差分学习",
+      "icon": "Timer",
+      "description": "RL 最核心的思想：用估计更新估计（自举）。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "TD(0) 预测",
+          "description": "TD 误差 δ 与自举。",
+          "icon": "Timer",
+          "points": ["TD 目标与 TD 误差", "MC vs TD vs DP 的备份对比", "随机游走示例", "TD 的优势：在线、增量"],
+          "components": [
+            { "name": "RandomWalkTDvsMC", "idea": "5 状态随机游走，同时运行 TD 与 MC，对比 RMS 误差曲线" }
+          ],
+          "motions": [
+            { "id": "td-error", "idea": "TD 目标 r + γV(s') 与当前 V(s) 的差 δ 被可视化为一根“弹簧”拉动估计值" }
+          ]
+        },
+        {
+          "slug": "02-sarsa",
+          "title": "SARSA：在策略 TD 控制",
+          "description": "(S, A, R, S', A') 五元组更新。",
+          "icon": "Footprints",
+          "points": ["SARSA 更新公式", "在策略的含义", "悬崖行走中的“安全路线”", "Expected SARSA"],
+          "components": [
+            { "name": "CliffWalkingLab", "idea": "悬崖行走环境，可切换 SARSA / Q-learning 并观察学到的路径差异" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "03-q-learning",
+          "title": "Q-learning：离策略 TD 控制",
+          "description": "直接学习最优动作价值 Q*。",
+          "icon": "Brain",
+          "points": ["Q-learning 更新公式", "max 操作与离策略", "Q 表的可视化", "收敛条件"],
+          "components": [
+            { "name": "QLearningGrid", "idea": "网格世界 Q-learning 训练器：可调 α/γ/ε，显示 Q 表四向三角热力图与回合奖励曲线" }
+          ],
+          "motions": [
+            { "id": "q-learning-update", "idea": "单步 Q 更新：智能体移动、取 max Q(s',·)、计算 TD 目标、更新单元格" }
+          ]
+        },
+        {
+          "slug": "04-double-q",
+          "title": "最大化偏差与 Double Q-learning",
+          "description": "max 带来的高估问题及其解决办法。",
+          "icon": "Copy",
+          "points": ["最大化偏差的来源", "Double Q-learning 原理", "实验对比", "通往 Double DQN"],
+          "components": [
+            { "name": "MaxBiasDemo", "idea": "多个噪声估计取 max 的偏差模拟，调整动作数与噪声大小" }
+          ],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "07-n-step-eligibility",
+      "title": "第七部分：n 步自举与资格迹",
+      "icon": "Route",
+      "description": "在 MC 与 TD 之间连续插值。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "n 步 TD",
+          "description": "向前看 n 步再自举。",
+          "icon": "Route",
+          "points": ["n 步回报 G_{t:t+n}", "n 步 TD 预测", "n 步 SARSA", "n 的偏差-方差权衡"],
+          "components": [
+            { "name": "NStepSpectrum", "idea": "拖动 n 从 1 到 ∞，备份图从 TD 逐渐变为 MC" }
+          ],
+          "motions": [
+            { "id": "n-step-backup", "idea": "n 步备份的长度逐渐增长，展示 TD(0) 到 MC 的连续谱" }
+          ]
+        },
+        {
+          "slug": "02-td-lambda",
+          "title": "λ-回报与 TD(λ)",
+          "description": "对所有 n 步回报做几何加权平均。",
+          "icon": "Lambda",
+          "points": ["λ-回报定义", "权重 (1-λ)λ^{n-1}", "前向视角", "λ=0 与 λ=1 的特例"],
+          "components": [
+            { "name": "LambdaReturnWeights", "idea": "拖动 λ，显示各 n 步回报的权重分布" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "03-eligibility-traces",
+          "title": "资格迹",
+          "description": "后向视角：给“最近、最常访问”的状态记功。",
+          "icon": "Sparkles",
+          "points": ["累积迹 vs 替换迹", "后向视角 TD(λ)", "SARSA(λ)", "信用分配问题"],
+          "components": [
+            { "name": "EligibilityTraceViz", "idea": "智能体走过的路径留下逐渐衰减的“迹”，获得奖励时按迹更新" }
+          ],
+          "motions": [
+            { "id": "eligibility-trace-decay", "idea": "路径上的光迹随时间按 γλ 衰减，奖励到达时沿迹回传" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "08-function-approximation",
+      "title": "第八部分：函数近似",
+      "icon": "Spline",
+      "description": "当状态多到无法用表格存储时。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "从表格到函数",
+          "description": "泛化、价值函数近似与均方价值误差。",
+          "icon": "Spline",
+          "points": ["表格方法的局限", "参数化价值函数 v̂(s, w)", "VE 目标与状态分布 μ", "泛化与区分"],
+          "components": [
+            { "name": "TabularVsApprox", "idea": "对比表格与线性近似在连续状态上的拟合效果" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "02-linear-features",
+          "title": "线性方法与特征构造",
+          "description": "多项式、傅里叶基、粗编码与瓦片编码。",
+          "icon": "LayoutGrid",
+          "points": ["线性价值函数", "多项式 / 傅里叶基", "粗编码（Coarse Coding）", "瓦片编码（Tile Coding）"],
+          "components": [
+            { "name": "TileCodingViz", "idea": "调整瓦片数量与偏移，点击某点查看激活的瓦片" }
+          ],
+          "motions": [
+            { "id": "tile-coding", "idea": "多层偏移的瓦片网格叠加，一个点激活每层的一块瓦片" }
+          ]
+        },
+        {
+          "slug": "03-semi-gradient",
+          "title": "半梯度方法",
+          "description": "为什么 TD 不是真正的梯度下降。",
+          "icon": "TrendingDown",
+          "points": ["随机梯度下降回顾", "梯度 MC", "半梯度 TD(0)", "山地车（Mountain Car）示例"],
+          "components": [
+            { "name": "MountainCarDemo", "idea": "山地车环境动画 + 学到的价值函数等高线" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "04-deadly-triad",
+          "title": "致命三元组",
+          "description": "函数近似 + 自举 + 离策略 = 发散风险。",
+          "icon": "TriangleAlert",
+          "points": ["Baird 反例", "三元组的组合分析", "DQN 如何缓解", "Gradient-TD 简介"],
+          "components": [
+            { "name": "DeadlyTriadToggle", "idea": "三个开关组合，展示对应的收敛/发散曲线" }
+          ],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "09-deep-q-learning",
+      "title": "第九部分：深度 Q 网络",
+      "icon": "Cpu",
+      "description": "深度强化学习的起点：DQN 及其改进家族。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "DQN",
+          "description": "用卷积网络从像素学习 Atari 游戏。",
+          "icon": "Cpu",
+          "points": ["神经网络作为 Q 函数", "损失函数与目标", "DQN 网络结构", "Atari 预处理"],
+          "components": [
+            { "name": "DQNArchitecture", "idea": "可悬停的 DQN 网络结构图：帧堆叠 → 卷积 → 全连接 → 每个动作的 Q 值" }
+          ],
+          "motions": [
+            { "id": "dqn-pipeline", "idea": "像素帧进入网络、输出 Q 值、选动作、存经验、采样批次、更新网络的流水线动画" }
+          ]
+        },
+        {
+          "slug": "02-replay-target",
+          "title": "经验回放与目标网络",
+          "description": "让深度 Q 学习稳定下来的两大技巧。",
+          "icon": "Database",
+          "points": ["样本相关性问题", "经验回放缓冲区", "目标网络与软更新", "消融实验结论"],
+          "components": [
+            { "name": "ReplayBufferViz", "idea": "环形缓冲区写入经验与随机采样 mini-batch 的可视化" }
+          ],
+          "motions": [
+            { "id": "replay-buffer", "idea": "经验不断写入环形缓冲区、随机抽取小批量的动画" }
+          ]
+        },
+        {
+          "slug": "03-dqn-variants",
+          "title": "DQN 改进家族",
+          "description": "Double、Dueling、PER、Noisy、Distributional。",
+          "icon": "GitBranch",
+          "points": ["Double DQN", "Dueling 网络结构", "优先经验回放 PER", "Noisy Nets 与 C51 分布式 RL"],
+          "components": [
+            { "name": "DuelingDecomposition", "idea": "调整 V(s) 与 A(s,a)，观察 Q = V + A - mean(A) 的合成" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "04-rainbow",
+          "title": "Rainbow",
+          "description": "把六项改进组合在一起。",
+          "icon": "Rainbow",
+          "points": ["六大组件回顾", "消融实验", "数据效率的提升", "DQN 系列的局限"],
+          "components": [
+            { "name": "RainbowAblation", "idea": "勾选组件，查看对应的（示意性）性能曲线与说明" }
+          ],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "10-policy-gradient",
+      "title": "第十部分：策略梯度",
+      "icon": "Mountain",
+      "description": "直接优化策略：REINFORCE 与 Actor-Critic。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "策略梯度定理",
+          "description": "为什么可以直接对策略求梯度。",
+          "icon": "Mountain",
+          "points": ["参数化策略 π_θ", "目标函数 J(θ)", "对数导数技巧", "策略梯度定理"],
+          "components": [
+            { "name": "PolicyGradientLandscape", "idea": "二维参数空间上的 J(θ) 等高线，点击执行梯度上升步骤" }
+          ],
+          "motions": [
+            { "id": "policy-gradient-ascent", "idea": "好动作概率被“推高”、坏动作概率被“压低”的策略分布变形动画" }
+          ]
+        },
+        {
+          "slug": "02-reinforce",
+          "title": "REINFORCE 与基线",
+          "description": "蒙特卡洛策略梯度及方差缩减。",
+          "icon": "Rocket",
+          "points": ["REINFORCE 算法", "高方差问题", "基线 b(s) 不引入偏差", "短走廊示例"],
+          "components": [
+            { "name": "BaselineVarianceDemo", "idea": "有/无基线时梯度估计的散点分布对比" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "03-actor-critic",
+          "title": "Actor-Critic",
+          "description": "演员负责行动，评论家负责打分。",
+          "icon": "Drama",
+          "points": ["Actor 与 Critic 的分工", "优势函数 A(s,a)", "A2C / A3C", "广义优势估计 GAE"],
+          "components": [
+            { "name": "GAELambdaExplorer", "idea": "调整 γ 与 λ，查看 GAE 对各步 TD 误差的加权" }
+          ],
+          "motions": [
+            { "id": "actor-critic-loop", "idea": "Actor 出动作、Critic 计算优势、双方分别更新的协作动画" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "11-trust-region",
+      "title": "第十一部分：信赖域与 PPO",
+      "icon": "ShieldCheck",
+      "description": "让策略更新又稳又快：自然梯度、TRPO、PPO。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "步子太大会扯着",
+          "description": "策略更新的稳定性问题与 KL 约束。",
+          "icon": "ShieldCheck",
+          "points": ["策略崩溃现象", "替代目标（Surrogate Objective）", "KL 散度作为距离", "自然梯度与 Fisher 信息矩阵"],
+          "components": [
+            { "name": "KLTrustRegion", "idea": "两个高斯策略分布，拖动参数显示 KL 值与是否超出信赖域" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "02-trpo",
+          "title": "TRPO",
+          "description": "带 KL 约束的单调改进保证。",
+          "icon": "Lock",
+          "points": ["单调改进下界", "共轭梯度 + 线搜索", "实现复杂度", "TRPO 的局限"],
+          "components": [],
+          "motions": []
+        },
+        {
+          "slug": "03-ppo",
+          "title": "PPO",
+          "description": "截断替代目标：工业界最常用的 RL 算法。",
+          "icon": "Scissors",
+          "points": ["概率比 r_t(θ)", "Clip 目标函数", "PPO 完整训练流程", "关键实现细节（37 个技巧）"],
+          "components": [
+            { "name": "PPOClipVisualizer", "idea": "拖动优势正负与 ε，显示 clip 目标函数随 r_t 变化的折线" }
+          ],
+          "motions": [
+            { "id": "ppo-clip", "idea": "概率比 r 在 [1-ε, 1+ε] 区间外被“剪平”的目标函数动画" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "12-continuous-control",
+      "title": "第十二部分：连续控制",
+      "icon": "Bot",
+      "description": "动作是连续值时：DDPG、TD3、SAC 与最大熵强化学习。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "连续动作空间",
+          "description": "高斯策略与确定性策略。",
+          "icon": "Bot",
+          "points": ["离散 vs 连续动作", "高斯策略与重参数化", "动作边界与 tanh 压缩", "MuJoCo 基准"],
+          "components": [
+            { "name": "GaussianPolicyViz", "idea": "调整均值与标准差，查看动作采样分布与 tanh 压缩后的分布" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "02-ddpg-td3",
+          "title": "DDPG 与 TD3",
+          "description": "确定性策略梯度及其三个改进。",
+          "icon": "Gauge",
+          "points": ["确定性策略梯度定理", "DDPG 算法", "TD3：双 Critic、延迟更新、目标平滑", "探索噪声"],
+          "components": [
+            { "name": "TwinCriticDemo", "idea": "两个 Critic 估计取 min 缓解高估的可视化" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "03-sac",
+          "title": "SAC 与最大熵 RL",
+          "description": "在追求奖励的同时保持随机性。",
+          "icon": "Flame",
+          "points": ["最大熵目标", "软价值函数", "SAC 算法", "自动温度调节 α"],
+          "components": [
+            { "name": "EntropyTemperature", "idea": "调整温度 α，观察 softmax 策略在多峰 Q 上的分布变化" }
+          ],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "13-model-based",
+      "title": "第十三部分：基于模型的强化学习",
+      "icon": "Box",
+      "description": "学习一个世界模型，然后在“脑中”规划。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "模型与规划",
+          "description": "Model-free vs model-based，Dyna 架构。",
+          "icon": "Box",
+          "points": ["什么是模型", "规划（Planning）", "Dyna-Q", "模型误差的影响"],
+          "components": [
+            { "name": "DynaQMaze", "idea": "迷宫中对比 Q-learning 与 Dyna-Q（可调规划步数 n）的学习速度" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "02-mcts",
+          "title": "蒙特卡洛树搜索",
+          "description": "选择、扩展、模拟、回传。",
+          "icon": "TreePine",
+          "points": ["MCTS 四步骤", "UCT 选择公式", "井字棋示例", "与神经网络结合"],
+          "components": [
+            { "name": "MCTSTicTacToe", "idea": "井字棋上单步运行 MCTS，树结构与访问次数实时生长" }
+          ],
+          "motions": [
+            { "id": "mcts-four-steps", "idea": "MCTS 的选择→扩展→模拟→回传四阶段循环动画" }
+          ]
+        },
+        {
+          "slug": "03-alphazero-muzero",
+          "title": "AlphaZero 与 MuZero",
+          "description": "自博弈 + 神经网络引导的搜索。",
+          "icon": "Crown",
+          "points": ["策略价值网络", "自博弈训练循环", "MuZero：学习隐空间模型", "从围棋到 Atari"],
+          "components": [],
+          "motions": []
+        },
+        {
+          "slug": "04-world-models",
+          "title": "世界模型与 Dreamer",
+          "description": "在想象中训练智能体。",
+          "icon": "Cloud",
+          "points": ["World Models（VAE + RNN）", "Dreamer 系列", "隐空间想象训练", "与视频生成模型的联系"],
+          "components": [],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "14-exploration",
+      "title": "第十四部分：探索",
+      "icon": "Telescope",
+      "description": "稀疏奖励下如何高效探索：内在动机与好奇心。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "稀疏奖励的挑战",
+          "description": "蒙特祖玛的复仇为何如此困难。",
+          "icon": "Telescope",
+          "points": ["稀疏奖励问题", "随机探索的低效", "奖励塑形及其陷阱", "势函数塑形"],
+          "components": [
+            { "name": "SparseRewardMaze", "idea": "大迷宫中随机游走的覆盖率 vs 计数奖励探索的覆盖率对比" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "02-intrinsic-motivation",
+          "title": "内在动机",
+          "description": "计数、好奇心（ICM）与随机网络蒸馏（RND）。",
+          "icon": "Lightbulb",
+          "points": ["基于计数的探索", "ICM：预测误差作为好奇心", "RND", "“噪声电视”问题"],
+          "components": [],
+          "motions": []
+        },
+        {
+          "slug": "03-go-explore",
+          "title": "Go-Explore 与分层 RL",
+          "description": "先回到有希望的状态，再探索。",
+          "icon": "Flag",
+          "points": ["Go-Explore 思想", "选项框架（Options）", "分层 RL", "目标条件 RL 与 HER"],
+          "components": [],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "15-offline-imitation",
+      "title": "第十五部分：模仿学习与离线 RL",
+      "icon": "Archive",
+      "description": "从示范和固定数据集中学习策略。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "模仿学习",
+          "description": "行为克隆、DAgger 与复合误差。",
+          "icon": "Copy",
+          "points": ["行为克隆（BC）", "分布偏移与复合误差", "DAgger", "示范数据的质量"],
+          "components": [
+            { "name": "CompoundingErrorDemo", "idea": "BC 策略轨迹偏离专家轨迹后误差逐步放大的可视化" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "02-inverse-rl",
+          "title": "逆强化学习",
+          "description": "从行为中反推奖励函数。",
+          "icon": "Undo2",
+          "points": ["IRL 问题定义", "最大熵 IRL", "GAIL", "奖励的不可辨识性"],
+          "components": [],
+          "motions": []
+        },
+        {
+          "slug": "03-offline-rl",
+          "title": "离线强化学习",
+          "description": "不与环境交互，只用历史数据。",
+          "icon": "HardDrive",
+          "points": ["离线 RL 设定", "外推误差与 OOD 动作", "CQL / IQL / BCQ", "Decision Transformer"],
+          "components": [],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "16-multi-agent",
+      "title": "第十六部分：多智能体强化学习",
+      "icon": "Users",
+      "description": "多个智能体同时学习：合作、竞争与博弈。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "博弈论基础",
+          "description": "纳什均衡、零和博弈与马尔可夫博弈。",
+          "icon": "Users",
+          "points": ["标准型博弈", "纳什均衡", "囚徒困境与重复博弈", "马尔可夫博弈"],
+          "components": [
+            { "name": "PayoffMatrixGame", "idea": "可编辑 2×2 收益矩阵，自动标出纳什均衡并模拟两个学习者" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "02-marl-algorithms",
+          "title": "MARL 算法",
+          "description": "独立学习、CTDE、MADDPG、QMIX。",
+          "icon": "Workflow",
+          "points": ["非平稳性问题", "独立 Q 学习", "集中训练分散执行 CTDE", "MADDPG / QMIX / MAPPO"],
+          "components": [],
+          "motions": []
+        },
+        {
+          "slug": "03-self-play",
+          "title": "自博弈与群体训练",
+          "description": "AlphaStar、OpenAI Five 与联盟训练。",
+          "icon": "Swords",
+          "points": ["自博弈", "虚拟自博弈（Fictitious Play）", "联盟训练（League）", "涌现行为：捉迷藏"],
+          "components": [],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "17-rl-for-llm",
+      "title": "第十七部分：强化学习与大模型",
+      "icon": "MessageSquare",
+      "description": "RLHF、DPO、GRPO 与推理模型背后的强化学习。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "把语言模型看成策略",
+          "description": "token 级 MDP：状态、动作与奖励。",
+          "icon": "MessageSquare",
+          "points": ["LLM 作为策略 π_θ(token|context)", "序列级奖励与稀疏性", "KL 惩罚与参考模型", "后训练流程全景"],
+          "components": [
+            { "name": "TokenMDPViz", "idea": "逐 token 生成文本，展示每一步的状态、动作概率分布与最终奖励" }
+          ],
+          "motions": [
+            { "id": "llm-as-policy", "idea": "LLM 逐 token 采样形成回答、奖励模型打分、梯度回传的动画" }
+          ]
+        },
+        {
+          "slug": "02-rlhf",
+          "title": "RLHF",
+          "description": "奖励模型 + PPO：ChatGPT 的对齐配方。",
+          "icon": "ThumbsUp",
+          "points": ["SFT → RM → PPO 三阶段", "Bradley-Terry 偏好模型", "PPO 中的四个模型", "奖励黑客（Reward Hacking）"],
+          "components": [
+            { "name": "BradleyTerryDemo", "idea": "调整两个回答的奖励分差，查看偏好概率 σ(r1-r2) 与损失" }
+          ],
+          "motions": [
+            { "id": "rlhf-pipeline", "idea": "SFT、奖励模型、PPO 三阶段流水线及四个模型之间的数据流动画" }
+          ]
+        },
+        {
+          "slug": "03-dpo",
+          "title": "DPO 与直接偏好优化",
+          "description": "跳过奖励模型的闭式解。",
+          "icon": "ArrowRightLeft",
+          "points": ["从 RLHF 目标到闭式最优策略", "DPO 损失推导", "β 的作用", "IPO / KTO / SimPO 等变体"],
+          "components": [
+            { "name": "DPOLossExplorer", "idea": "调节 β 与 chosen/rejected 的对数概率比，查看 DPO 损失与梯度权重" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "04-grpo-reasoning",
+          "title": "GRPO 与推理模型",
+          "description": "组相对优势、可验证奖励与 DeepSeek-R1。",
+          "icon": "Lightbulb",
+          "points": ["RLVR：可验证奖励", "GRPO：组内标准化优势、去掉 Critic", "DeepSeek-R1 的训练流程", "“顿悟时刻”与长思维链"],
+          "components": [
+            { "name": "GRPOGroupAdvantage", "idea": "对同一问题采样一组回答，调整各自奖励，实时计算组内标准化优势" }
+          ],
+          "motions": [
+            { "id": "grpo-group", "idea": "同一提示采样 G 个回答、打分、组内标准化成优势、更新策略的动画" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "18-practice",
+      "title": "第十八部分：工程实践",
+      "icon": "Wrench",
+      "description": "把算法真正训练起来：环境、奖励、超参与调试。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "Gymnasium 与环境接口",
+          "description": "reset / step / observation_space / action_space。",
+          "icon": "Wrench",
+          "points": ["Gymnasium API", "Wrapper 机制", "向量化环境", "自定义环境"],
+          "components": [
+            { "name": "GymStepSimulator", "idea": "模拟调用 env.reset()/env.step(a) 并展示返回的五元组" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "02-reward-design",
+          "title": "奖励设计",
+          "description": "奖励塑形、奖励黑客与对齐。",
+          "icon": "Gift",
+          "points": ["稀疏 vs 稠密奖励", "奖励塑形的风险", "经典奖励黑客案例", "奖励归一化与裁剪"],
+          "components": [
+            { "name": "RewardHackingGallery", "idea": "卡片展示经典奖励黑客案例：预期行为 vs 实际行为" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "03-debugging",
+          "title": "调参与调试",
+          "description": "RL 为什么难调，以及如何系统地排查。",
+          "icon": "Bug",
+          "points": ["关键超参数清单", "需要监控的指标", "常见失败模式", "随机种子与评估规范"],
+          "components": [
+            { "name": "TrainingCurveDiagnosis", "idea": "选择一种异常训练曲线，给出可能原因与排查步骤" }
+          ],
+          "motions": []
+        },
+        {
+          "slug": "04-libraries",
+          "title": "框架与工具链",
+          "description": "Stable-Baselines3、CleanRL、RLlib、TRL、verl。",
+          "icon": "Package",
+          "points": ["SB3 快速上手", "CleanRL 单文件实现", "RLlib 分布式训练", "大模型 RL：TRL / OpenRLHF / verl"],
+          "components": [],
+          "motions": []
+        }
+      ]
+    },
+    {
+      "id": "19-projects",
+      "title": "第十九部分：实战项目",
+      "icon": "Trophy",
+      "description": "从网格世界到大模型 GRPO 微调的完整项目。",
+      "sections": [
+        {
+          "slug": "index",
+          "title": "项目一：从零实现网格世界",
+          "description": "用纯 Python 实现环境 + 价值迭代 + Q-learning。",
+          "icon": "Grid2x2",
+          "points": ["环境类设计", "价值迭代实现", "Q-learning 实现", "可视化结果"],
+          "components": [],
+          "motions": []
+        },
+        {
+          "slug": "02-cartpole-dqn",
+          "title": "项目二：DQN 玩 CartPole",
+          "description": "PyTorch 实现 DQN 的完整代码。",
+          "icon": "Gamepad",
+          "points": ["网络与缓冲区", "训练循环", "常见坑", "结果分析"],
+          "components": [
+            { "name": "CartPoleSim", "idea": "浏览器中的 CartPole 物理仿真，可手动控制或使用简单线性策略" }
+          ],
+          "motions": [
+            { "id": "cartpole-balance", "idea": "CartPole 小车左右移动保持杆子平衡、失败时杆倒下的动画" }
+          ]
+        },
+        {
+          "slug": "03-ppo-lunar",
+          "title": "项目三：PPO 登月",
+          "description": "用 PPO 训练 LunarLander。",
+          "icon": "Rocket",
+          "points": ["环境分析", "PPO 实现要点", "超参数", "训练曲线解读"],
+          "components": [],
+          "motions": []
+        },
+        {
+          "slug": "04-grpo-llm",
+          "title": "项目四：用 GRPO 微调小模型做数学题",
+          "description": "基于 TRL 的 RLVR 实战。",
+          "icon": "Brain",
+          "points": ["数据集与奖励函数", "GRPOTrainer 配置", "训练监控", "效果评估"],
+          "components": [],
+          "motions": []
+        }
+      ]
+    }
+  ]
+}

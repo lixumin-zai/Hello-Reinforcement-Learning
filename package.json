@@ -1,0 +1,42 @@
+{
+  "name": "hello-reinforcement-learning",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start -H 0.0.0.0 -p 65433",
+    "types:check": "fumadocs-mdx && next typegen && tsc --noEmit",
+    "postinstall": "fumadocs-mdx",
+    "lint:content": "node scripts/check-content.mjs",
+    "motion:studio": "remotion studio src/motion/remotion/index.ts",
+    "motion:render": "node scripts/render-motion.mjs",
+    "motion:still": "node scripts/render-motion.mjs --still"
+  },
+  "dependencies": {
+    "@remotion/player": "4.0.544",
+    "fumadocs-core": "16.4.7",
+    "fumadocs-mdx": "14.2.5",
+    "fumadocs-ui": "16.4.7",
+    "katex": "^0.16.27",
+    "lucide-react": "^0.562.0",
+    "next": "16.1.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
+    "remotion": "4.0.544",
+    "tailwind-merge": "^3.4.0"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.544",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/mdx": "^2.0.13",
+    "@types/node": "^25.0.5",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3"
+  }
+}
