@@ -6,24 +6,41 @@ icon: 'Copy'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { MaxBiasDemo } from '@/components/docs/06-temporal-difference/MaxBiasDemo';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+Q-learning 目标中的 $\max_{a'} Q(S_{t+1}, a')$ 隐藏着一个微妙的统计学陷阱：**用同一批带噪声的估计值既负责“挑出最大动作”，又负责“评估该最大动作的价值”**，这会导致系统性的正向高估——称为**最大化偏差（Maximization Bias）**。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
-</Callout>
+---
 
-## 本节知识点
+## 1. 为什么最大值的期望大于期望的最大值？
 
-- 最大化偏差的来源
-- Double Q-learning 原理
-- 实验对比
-- 通往 Double DQN
+设每个动作的真实价值均为 $q_*(a) = 0$，但我们的估计值 $Q(a) = q_*(a) + \epsilon_a$ 带有零均值随机噪声 $\epsilon_a \sim \mathcal{N}(0, \sigma^2)$。由 Jensen 不等式，由于 $\max$ 是凸函数：
 
-## 规划的交互组件
+$$
+\mathbb{E}\Big[\max_{a} Q(a)\Big] \ge \max_{a} \mathbb{E}\big[Q(a)\big] = 0
+$$
 
-- **`<MaxBiasDemo />`**：多个噪声估计取 max 的偏差模拟，调整动作数与噪声大小
+当候选动作数 $k$ 越多、噪声方差 $\sigma^2$ 越大时，$\max_a Q(a)$ 挑中“正噪声极值”的概率就越高，高估偏差就越严重。
+
+---
+
+## 2. Double Q-learning：解耦「选动作」与「评价值」
+
+Hado van Hasselt (2010) 提出了极其优雅的解决方案：维护两张相互独立的价值表 $Q_1$ 和 $Q_2$，每一步以 $0.5$ 的概率随机翻转硬币更新其中一张：
+
+$$
+Q_1(S_t, A_t) \leftarrow Q_1(S_t, A_t) + \alpha \Big[R_{t+1} + \gamma \, Q_2\big(S_{t+1}, \arg\max_{a'} Q_1(S_{t+1}, a')\big) - Q_1(S_t, A_t)\Big]
+$$
+
+- 用 **$Q_1$ 选出最优动作** $a^* = \arg\max_{a'} Q_1(S_{t+1}, a')$；
+- 用独立的 **$Q_2$ 去评估该动作的价值** $Q_2(S_{t+1}, a^*)$。
+
+由于 $Q_2$ 的估计噪声与 $Q_1$ 独立，$\mathbb{E}[Q_2(S_{t+1}, a^*)] = q_*(S_{t+1}, a^*)$，高估偏差迎刃而解！这一思想直接催生了第 9 章著名的 **Double DQN** 与第 12 章 TD3/SAC 的**双 Critic 架构**。
+
+### 📊 交互实验：亲眼验证 $\max$ 高估偏差与 Double Q 解耦修正
+
+<MaxBiasDemo />
 
 <Cards>
-  <Card title="下一节：第七部分：n 步自举与资格迹" href="/docs/07-n-step-eligibility" />
+  <Card title="进入第七部分：n 步自举与资格迹" href="/docs/07-n-step-eligibility" description="把单步 TD(0) 与完整回合 MC 统一到同一个连续谱系中。" />
 </Cards>

@@ -6,28 +6,31 @@ icon: 'Brain'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { QLearningGrid } from '@/components/docs/06-temporal-difference/QLearningGrid';
+import { MotionPlayer } from '@/components/motion/MotionPlayer';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+1989 年 Watkins 提出的 **Q-learning** 是强化学习史上最重要的里程碑之一。它让智能体能够一边使用带随机探索的行为策略（如 $\varepsilon$-greedy）收集数据，一边直接学习**确定性最优策略 $\pi_*$ 的动作价值函数 $q_*$**。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
-</Callout>
+---
 
-## 本节知识点
+## 1. Q-learning 更新公式
 
-- Q-learning 更新公式
-- max 操作与离策略
-- Q 表的可视化
-- 收敛条件
+与 SARSA 不同，Q-learning 在构造 TD 目标时，根本不关心下一刻实际采样了什么动作，而是直接取下一状态 $S_{t+1}$ 上所有动作的最大估计值：
 
-## 规划的交互组件
+$$
+Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \alpha \Big[R_{t+1} + \gamma \max_{a' \in \mathcal{A}} Q(S_{t+1}, a') - Q(S_t, A_t)\Big]
+$$
 
-- **`<QLearningGrid />`**：网格世界 Q-learning 训练器：可调 α/γ/ε，显示 Q 表四向三角热力图与回合奖励曲线
+请注意括号内的目标 $R_{t+1} + \gamma \max_{a'} Q(S_{t+1}, a')$：它正是 **Bellman 最优方程** 的单样本随机近似！只要所有状态-动作对继续被访问，且步长 $\alpha_t$ 满足 Robbins-Monro 条件（$\sum \alpha_t = \infty, \sum \alpha_t^2 < \infty$），$Q$ 就以概率 $1$ 收敛到 $q_*$。
 
-## 规划的动效讲解
+### 🎬 Remotion 动作讲解：Q-learning 单步离策略更新拆解
 
-- 🎬 **`q-learning-update`**：单步 Q 更新：智能体移动、取 max Q(s',·)、计算 TD 目标、更新单元格
+<MotionPlayer id="q-learning-update" />
+
+### 📊 交互实验：在 5×5 迷宫上实时训练 Q-learning
+
+<QLearningGrid />
 
 <Cards>
-  <Card title="下一节：最大化偏差与 Double Q-learning" href="/docs/06-temporal-difference/04-double-q" />
+  <Card title="下一节：最大化偏差与 Double Q-learning" href="/docs/06-temporal-difference/04-double-q" description="为什么 max 算子会导致系统性高估？如何用两套独立的 Q 表化解？" />
 </Cards>

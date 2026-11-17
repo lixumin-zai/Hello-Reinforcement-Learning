@@ -76,7 +76,10 @@ for (const ch of fw.chapters) {
 
 // ---- 确定性检查（动效必须逐帧可复现） ----
 for (const f of [...motionFiles, ...walk(path.join(root, 'src/lib/rl'))]) {
-  const src = fs.readFileSync(f, 'utf8');
+  const src = fs
+    .readFileSync(f, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '');
   if (/Math\.random\(|Date\.now\(|performance\.now\(/.test(src))
     errors.push(`${path.relative(root, f)} 含非确定性调用（请使用 src/lib/rl/random.ts 的种子随机数）`);
 }

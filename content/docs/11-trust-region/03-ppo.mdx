@@ -6,28 +6,46 @@ icon: 'Scissors'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { PPOClipVisualizer } from '@/components/docs/11-trust-region/PPOClipVisualizer';
+import { MotionPlayer } from '@/components/motion/MotionPlayer';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+TRPO 虽然从理论上保证了单调改进，但它需要计算 Fisher 信息矩阵与共轭梯度，在大规模深度神经网络上过于沉重。2017 年 OpenAI 提出的 **PPO（Proximal Policy Optimization）** 仅用一个简单的 `clip` 截断操作，就用一阶 SGD 实现了信赖域约束，成为机器人控制与 RLHF 的工业界标准算法。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
-</Callout>
+---
 
-## 本节知识点
+## 1. 重要性采样概率比 $r_t(\theta)$
 
-- 概率比 r_t(θ)
-- Clip 目标函数
-- PPO 完整训练流程
-- 关键实现细节（37 个技巧）
+设旧策略为 $\pi_{\theta_{\text{old}}}$，当前待优化策略为 $\pi_\theta$，定义两者在同一状态-动作对上的概率比：
 
-## 规划的交互组件
+$$
+r_t(\theta) \doteq \frac{\pi_\theta(A_t \mid S_t)}{\pi_{\theta_{\text{old}}}(A_t \mid S_t)}
+$$
 
-- **`<PPOClipVisualizer />`**：拖动优势正负与 ε，显示 clip 目标函数随 r_t 变化的折线
+当 $\theta = \theta_{\text{old}}$ 时，$r_t(\theta) = 1$。如果直接最大化未加约束的替代目标 $L^{\text{CPI}}(\theta) = \hat{\mathbb{E}}_t\big[r_t(\theta)\hat{A}_t\big]$，优化器会把好动作的概率比推向无穷大，导致策略一步崩溃。
 
-## 规划的动效讲解
+---
 
-- 🎬 **`ppo-clip`**：概率比 r 在 [1-ε, 1+ε] 区间外被“剪平”的目标函数动画
+## 2. PPO-Clip 截断替代目标函数
+
+PPO 的核心公式极其简洁：
+
+$$
+L^{\text{CLIP}}(\theta) \doteq \hat{\mathbb{E}}_t \left[ \min\Big( r_t(\theta)\hat{A}_t, \; \text{clip}\big(r_t(\theta), 1 - \varepsilon, 1 + \varepsilon\big)\hat{A}_t \Big) \right]
+$$
+
+其中 $\varepsilon$ 通常取 $0.2$。分两种情形看它的精妙之处：
+
+1. **当优势 $\hat{A}_t > 0$（这是一个比平均更好的动作）**：我们希望提高该动作的概率（即增大 $r_t$）。但一旦 $r_t(\theta) > 1 + \varepsilon$，外层的 $\min$ 就会选中被截平的常数项 $(1+\varepsilon)\hat{A}_t$，梯度变为 $0$，阻止策略走得太远。
+2. **当优势 $\hat{A}_t < 0$（这是一个比平均更差的动作）**：我们希望降低该动作的概率（即减小 $r_t$）。但一旦 $r_t(\theta) < 1 - \varepsilon$，外层的 $\min$（注意 $\hat{A}_t$ 为负）同样选中截平项 $(1-\varepsilon)\hat{A}_t$，防止把概率过度压零。
+
+### 🎬 Remotion 动作讲解：PPO-Clip 在正负优势下的双侧封顶机制
+
+<MotionPlayer id="ppo-clip" />
+
+### 📊 交互实验：亲手调节 $r_t(\theta)$、$\hat{A}_t$ 与 $\varepsilon$
+
+<PPOClipVisualizer />
 
 <Cards>
-  <Card title="下一节：第十二部分：连续控制" href="/docs/12-continuous-control" />
+  <Card title="进入第十二部分：连续控制" href="/docs/12-continuous-control" description="当动作空间从离散变成连续实数向量：DDPG、TD3 与最大熵 SAC。" />
 </Cards>

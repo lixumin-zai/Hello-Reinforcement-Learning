@@ -6,28 +6,47 @@ icon: 'Lightbulb'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { GRPOGroupAdvantage } from '@/components/docs/17-rl-for-llm/GRPOGroupAdvantage';
+import { MotionPlayer } from '@/components/motion/MotionPlayer';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+在传统 RLHF（PPO）中，训练一个 70B 的策略模型往往需要同时在显存中维护一个同样 70B 大小的价值网络（Critic $V_\phi$），显存与计算开销极其高昂。**GRPO（Group Relative Policy Optimization）** 通过“同一问题采样一组回答、组内互相比较”的思想彻底省掉了 Critic 网络，成为 DeepSeek-Math 与 DeepSeek-R1 的核心强化学习算法。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
-</Callout>
+---
 
-## 本节知识点
+## 1. 组内相对优势（Group Relative Advantage）
 
-- RLVR：可验证奖励
-- GRPO：组内标准化优势、去掉 Critic
-- DeepSeek-R1 的训练流程
-- “顿悟时刻”与长思维链
+对于每一个输入问题 $q$，GRPO 从旧策略 $\pi_{\theta_{\text{old}}}$ 中并行采样一组 $G$ 条完整输出 $\{o_1, o_2, \dots, o_G\}$，并由奖励函数（或规则验证器）给出每条输出的标量奖励 $\{r_1, r_2, \dots, r_G\}$。
 
-## 规划的交互组件
+接着，直接用**这一组奖励的均值与标准差**对每条回答做标准化，作为该回答所有 token 的优势估计：
 
-- **`<GRPOGroupAdvantage />`**：对同一问题采样一组回答，调整各自奖励，实时计算组内标准化优势
+$$
+\hat{A}_{i, t} = \tilde{r}_i \doteq \frac{r_i - \text{mean}(\{r_1, \dots, r_G\})}{\text{std}(\{r_1, \dots, r_G\})}
+$$
 
-## 规划的动效讲解
+---
 
-- 🎬 **`grpo-group`**：同一提示采样 G 个回答、打分、组内标准化成优势、更新策略的动画
+## 2. GRPO 目标函数
+
+将组内相对优势代入 PPO-Clip，并显式加上相对于参考模型 $\pi_{\text{ref}}$ 的 KL 散度正则项：
+
+$$
+\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q, \{o_i\}} \left[ \frac{1}{G}\sum_{i=1}^{G} \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \left( \min\Big(r_{i,t}(\theta)\hat{A}_{i,t}, \; \text{clip}\big(r_{i,t}(\theta), 1-\varepsilon, 1+\varepsilon\big)\hat{A}_{i,t}\Big) - \beta \mathbb{D}_{\text{KL}}\big[\pi_\theta \,\|\, \pi_{\text{ref}}\big] \right) \right]
+$$
+
+### 🎬 Remotion 动作讲解：GRPO 组采样、规则打分与组内标准化
+
+<MotionPlayer id="grpo-group" />
+
+### 📊 交互实验：调节同组 4 条回答得分，实时观察相对优势 $\hat{A}_i$
+
+<GRPOGroupAdvantage />
+
+---
+
+## 3. 可验证奖励（RLVR）与推理涌现
+
+在数学、代码、形式逻辑等任务上，我们不需要训练容易被钻空子的神经奖励模型（Reward Model），而是直接使用**确定性的规则验证器**（答案对不对 + `<think>` 标签格式对不对）。DeepSeek-R1-Zero 的实验表明，在纯 RLVR + GRPO 的驱动下，模型为了拿到更高的准确度奖励，会自发学会拉长思维链、自我验算甚至推翻重写（Aha Moment）。
 
 <Cards>
-  <Card title="下一节：第十八部分：工程实践" href="/docs/18-practice" />
+  <Card title="进入第十八部分：工程实践" href="/docs/18-practice" description="Gymnasium 环境接口、奖励设计陷阱、超参数调试与主流 RL 框架。" />
 </Cards>

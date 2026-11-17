@@ -6,28 +6,48 @@ icon: 'Timer'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { RandomWalkTDvsMC } from '@/components/docs/06-temporal-difference/RandomWalkTDvsMC';
+import { MotionPlayer } from '@/components/motion/MotionPlayer';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+如果需要在强化学习中选择一个最核心、最具原创性的思想，毫无疑问就是**时序差分学习（Temporal-Difference Learning, TD）**。它结合了蒙特卡洛（MC）的**从原始经验采样**与动态规划（DP）的**自举（Bootstrapping）**。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
-</Callout>
+---
 
-## 本节知识点
+## 1. 从蒙特卡洛到单步时序差分 TD(0)
 
-- TD 目标与 TD 误差
-- MC vs TD vs DP 的备份对比
-- 随机游走示例
-- TD 的优势：在线、增量
+在常数步长蒙特卡洛预测中，我们必须等到整个回合在时刻 $T$ 结束、拿到真实完整回报 $G_t$ 后，才能更新状态 $S_t$：
 
-## 规划的交互组件
+$$
+V(S_t) \leftarrow V(S_t) + \alpha \big[G_t - V(S_t)\big]
+$$
 
-- **`<RandomWalkTDvsMC />`**：5 状态随机游走，同时运行 TD 与 MC，对比 RMS 误差曲线
+而 **TD(0)** 只向前走 **1 步**，观测到即时奖励 $R_{t+1}$ 与下一状态 $S_{t+1}$，立刻用当前对下一状态的估计值 $\gamma V(S_{t+1})$ 代替后续未知的回报 $G_{t+1}$：
 
-## 规划的动效讲解
+$$
+V(S_t) \leftarrow V(S_t) + \alpha \Big[\underbrace{R_{t+1} + \gamma V(S_{t+1})}_{\text{TD 目标 (TD Target)}} - V(S_t)\Big]
+$$
 
-- 🎬 **`td-error`**：TD 目标 r + γV(s') 与当前 V(s) 的差 δ 被可视化为一根“弹簧”拉动估计值
+括号中的差值被称为 **TD 误差（TD Error）**，记作 $\delta_t$：
+
+$$
+\delta_t \doteq R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+$$
+
+### 🎬 Remotion 动作讲解：TD 自举目标与 $\delta_t$ 误差牵引
+
+<MotionPlayer id="td-error" />
+
+---
+
+## 2. 为什么 TD 往往比 MC 收敛更快？
+
+1. **完全在线、每步更新**：无需等待回合结束，甚至可用于永不终止的持续式任务；
+2. **方差显著更低**：MC 的目标 $G_t$ 累加了未来几十步所有随机动作和随机状态转移的噪声；而 TD 目标只包含**单步随机性**，用一点点初期的自举偏差换取了方差的大幅下降。
+
+### 📊 交互实验：5 状态随机游走上 TD(0) vs MC 实时PK
+
+<RandomWalkTDvsMC />
 
 <Cards>
-  <Card title="下一节：SARSA：在策略 TD 控制" href="/docs/06-temporal-difference/02-sarsa" />
+  <Card title="下一节：SARSA 在策略 TD 控制" href="/docs/06-temporal-difference/02-sarsa" description="将 TD(0) 从状态价值 V 推广到动作价值 Q，形成五元组 (S, A, R, S′, A′) 控制循环。" />
 </Cards>
