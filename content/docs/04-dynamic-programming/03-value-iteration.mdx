@@ -6,28 +6,41 @@ icon: 'Zap'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { ValueIterationGrid } from '@/components/docs/04-dynamic-programming/ValueIterationGrid';
+import { MotionPlayer } from '@/components/motion/MotionPlayer';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+策略迭代有一个明显的效率瓶颈：每一轮内部都要运行成百上千次扫描来等待策略评估 $V \to v_\pi$ 完全收敛。事实上，我们根本不需要等评估彻底收敛——**只做 1 次评估扫描，就立刻把贪心 $\max_a$ 嵌进去**，这就是**价值迭代（Value Iteration）**。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
-</Callout>
+---
 
-## 本节知识点
+## 1. 价值迭代更新公式
 
-- 价值迭代算法
-- 与策略迭代的关系
-- 异步动态规划
-- 复杂度与维度灾难
+直接将 Bellman 最优方程写为迭代更新式：
 
-## 规划的交互组件
+$$
+V_{k+1}(s) \doteq \max_{a \in \mathcal{A}} \sum_{s', r} p(s', r \mid s, a)\Big[r + \gamma V_k(s')\Big]
+$$
 
-- **`<ValueIterationGrid />`**：可编辑墙/陷阱/目标的网格世界，逐步运行价值迭代
+当 $\max_s |V_{k+1}(s) - V_k(s)| < \theta$ 时停止迭代，最后做一次贪心提取即可得到最优策略：
 
-## 规划的动效讲解
+$$
+\pi_*(s) = \arg\max_{a \in \mathcal{A}} \sum_{s', r} p(s', r \mid s, a)\big[r + \gamma V_*(s')\big]
+$$
 
-- 🎬 **`value-iteration-grid`**：网格价值迭代：每次扫描热力图加深、策略箭头逐步对齐最优路径
+### 🎬 Remotion 动作讲解：5×5 网格价值迭代与最优路径生成
+
+<MotionPlayer id="value-iteration-grid" />
+
+### 📊 交互实验：确定性网格 vs 随机打滑网格的价值迭代
+
+<ValueIterationGrid />
+
+---
+
+## 2. 动态规划的局限：维度灾难
+
+每次完整扫描的时间复杂度为 $O(|\mathcal{S}|^2 |\mathcal{A}|)$。当状态空间较小时（如几千个状态），DP 极其高效；但在围棋（$|\mathcal{S}| \approx 3^{361}$）或连续机器人控制中，连把所有状态枚举一遍都不可能——这就是 Bellman 所说的**维度灾难（Curse of Dimensionality）**，也迫使我们走向后续的**采样学习（MC/TD）**与**函数近似（深度 RL）**。
 
 <Cards>
-  <Card title="下一节：广义策略迭代" href="/docs/04-dynamic-programming/04-gpi" />
+  <Card title="下一节：广义策略迭代 (GPI)" href="/docs/04-dynamic-programming/04-gpi" description="统摄全书所有强化学习算法的顶层视角。" />
 </Cards>

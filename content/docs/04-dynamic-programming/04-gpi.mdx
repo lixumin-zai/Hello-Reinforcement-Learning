@@ -6,27 +6,38 @@ icon: 'Infinity'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { GPIDiagram } from '@/components/docs/04-dynamic-programming/GPIDiagram';
+import { MotionPlayer } from '@/components/motion/MotionPlayer';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+无论是策略迭代、价值迭代，还是后面将要学习的蒙特卡洛控制、SARSA、Q-learning 乃至 Actor-Critic，它们在骨子里都在做同一件事——**广义策略迭代（Generalized Policy Iteration, GPI）**。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+---
+
+## 1. 评估与改进的竞争与合作
+
+GPI 指的是让**策略评估（Evaluation）**和**策略改进（Improvement）**两个过程以任意粒度交替进行的一般框架：
+
+1. **评估过程**总是试图让价值估计 $V$ 与当前策略 $\pi$ 相匹配（拉向 $V = v_\pi$ 流形）；
+2. **改进过程**总是试图让策略 $\pi$ 对当前价值估计 $V$ 变贪心（拉向 $\pi = \text{greedy}(V)$ 流形）。
+
+单独看，每一步改进都会让刚算好的价值变得不再匹配新策略；每一步评估又会让旧策略显得不再贪心。但从全局几何上看，这两个相互拉扯的过程像锯齿一样把 $(V, \pi)$ 逼向两条流形的唯一交点——**最优价值与最优策略 $(v_*, \pi_*)$**。
+
+### 🎬 Remotion 动作讲解：GPI 锯齿收敛几何图景
+
+<MotionPlayer id="gpi-zigzag" />
+
+### 📊 交互实验：分步拆解 GPI 循环
+
+<GPIDiagram />
+
+<Callout type="info" title="用 GPI 视角串联全书算法">
+  - **策略迭代**：完整评估到收敛 + 贪心改进；
+  - **价值迭代**：1 步全状态期望评估 + 贪心改进；
+  - **蒙特卡洛控制**：用完整回合采样回报评估 $Q$ + $\varepsilon$-贪心改进；
+  - **SARSA / Q-learning**：每走 1 步做一次 TD 自举评估 + $\varepsilon$-贪心/$\max$ 改进；
+  - **Actor-Critic / PPO**：Critic 网络负责评估价值，Actor 网络沿策略梯度方向改进策略。
 </Callout>
 
-## 本节知识点
-
-- GPI 的双向拉扯图
-- 评估与改进的竞争与合作
-- 后续所有算法都是 GPI 的实例
-
-## 规划的交互组件
-
-- **`<GPIDiagram />`**：V 与 π 两条线之间折线逼近最优点的交互示意图
-
-## 规划的动效讲解
-
-- 🎬 **`gpi-zigzag`**：评估/改进两条约束线之间锯齿状收敛到 (V*, π*) 的动画
-
 <Cards>
-  <Card title="下一节：第五部分：蒙特卡洛方法" href="/docs/05-monte-carlo" />
+  <Card title="进入第五部分：蒙特卡洛方法" href="/docs/05-monte-carlo" description="告别已知环境模型 p(s′,r|s,a)，仅凭真实交互经验轨迹学习价值与策略。" />
 </Cards>

@@ -5,6 +5,17 @@ import { GPIZigzagMotion } from './GPIZigzagMotion';
 
 export const entries: MotionEntry[] = [
   {
+    id: 'policy-evaluation-sweep',
+    chapter: '04-dynamic-programming',
+    title: '迭代策略评估：价值水波扩散',
+    description: '同步 Bellman 备份扫描下，状态价值从终点逐轮向外扩散直至 Δ 收敛。',
+    component: ValueIterationGridMotion,
+    durationInFrames: 240,
+    fps: MOTION_THEME.fps,
+    width: MOTION_THEME.width,
+    height: MOTION_THEME.height,
+  },
+  {
     id: 'value-iteration-grid',
     chapter: '04-dynamic-programming',
     title: '5×5 网格价值迭代与最优路径生成',
