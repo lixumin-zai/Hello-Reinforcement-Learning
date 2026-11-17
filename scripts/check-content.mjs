@@ -28,10 +28,11 @@ const walk = (dir) =>
       )
     : [];
 
-// ---- 已注册的动效 id ----
+// ---- 已注册的动效 id（仅扫描章节注册表 index.ts） ----
 const motionFiles = walk(path.join(root, 'src/motion/compositions')).filter((f) => /\.(ts|tsx)$/.test(f));
+const motionIndexFiles = motionFiles.filter((f) => f.endsWith('/index.ts'));
 const registered = new Set();
-for (const f of motionFiles) {
+for (const f of motionIndexFiles) {
   const src = fs.readFileSync(f, 'utf8');
   for (const m of src.matchAll(/\bid:\s*['"]([a-z0-9-]+)['"]/g)) registered.add(m[1]);
 }
