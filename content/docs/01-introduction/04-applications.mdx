@@ -6,25 +6,34 @@ icon: 'Globe'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { ApplicationMap } from '@/components/docs/01-introduction/ApplicationMap';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+判断一个现实问题能否用强化学习求解，关键看它能否清晰地回答以下三个问题：
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+1. **状态 $\mathcal{S}$ 是什么？** 智能体在决策瞬间能观测到哪些信息？
+2. **动作 $\mathcal{A}$ 是什么？** 智能体手中握有哪些可调节的控制旋钮？
+3. **奖励 $\mathcal{R}$ 是什么？** 什么是我们真正想要长期优化的标量指标？
+
+---
+
+## 1. 五大工业场景的 MDP 建模
+
+<ApplicationMap />
+
+---
+
+## 2. 什么时候适合使用强化学习？
+
+| 特性 | 适合强化学习的场景 | 更适合监督学习/传统规划的场景 |
+| --- | --- | --- |
+| **决策序列性** | 当前动作会改变未来状态分布（多步序贯决策） | 单次独立预测（如图像分类、垃圾邮件识别） |
+| **最优标签可得性** | 不知道最优动作，但能评估结果好坏（可验证奖励） | 已有大量高质量专家标注 $(x, y)$ |
+| **环境交互或仿真器** | 有高速仿真器（游戏、物理引擎、代码沙箱）或丰富离线日志 | 每次试错代价极高且无法仿真（如临床高危医疗决策） |
+
+<Callout type="info" title="第一部分小结">
+  你已经掌握了强化学习的直觉图景：智能体在环境中试错交互，以最大化长期累积标量奖励为目标。下一章我们将进入强化学习的数学母语——**马尔可夫决策过程 (MDP)**，严格定义回报 $G_t$、价值函数 $v_\pi, q_\pi$ 与著名的 **Bellman 方程**。
 </Callout>
 
-## 本节知识点
-
-- 游戏与博弈
-- 机器人与连续控制
-- 推荐系统与广告
-- 运筹优化与芯片布局
-- 大语言模型后训练
-
-## 规划的交互组件
-
-- **`<ApplicationMap />`**：应用卡片网格：悬停显示状态/动作/奖励分别是什么
-
 <Cards>
-  <Card title="下一节：第二部分：马尔可夫决策过程" href="/docs/02-mdp" />
+  <Card title="进入第二部分：马尔可夫决策过程 (MDP)" href="/docs/02-mdp" description="形式化定义状态转移、折扣回报、策略与 Bellman 方程。" />
 </Cards>

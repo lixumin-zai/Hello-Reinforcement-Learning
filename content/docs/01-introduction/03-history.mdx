@@ -6,25 +6,38 @@ icon: 'History'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { RLTimeline } from '@/components/docs/01-introduction/RLTimeline';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+现代强化学习并非单一学科的产物，而是由**三条相对独立的研究脉络**在 20 世纪 80 年代末交汇融合而成。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+---
+
+## 1. 三条源流的交汇
+
+1. **动物心理学中的试错学习（Trial-and-Error）**：1911 年桑代克（Thorndike）提出**效果律（Law of Effect）**——带来满意结果的行为会被强化，带来不适结果的行为会被削弱；巴甫洛夫的条件反射与斯金纳箱进一步揭示了奖励信号如何重塑行为频率。
+2. **最优控制与动态规划（Optimal Control）**：20 世纪 50 年代，Richard Bellman 引入状态、价值函数与**Bellman 方程**，提出了求解马尔可夫决策过程（MDP）的动态规划方法。
+3. **时序差分学习（Temporal-Difference Learning）**：Sutton（1988）系统化了 TD($\lambda$) 算法，Watkins（1989）提出了离策略 Q-learning，将在线试错学习与 Bellman 最优性原理彻底统一起来。
+
+---
+
+## 2. 关键里程碑时间线
+
+<RLTimeline />
+
+---
+
+## 3. 从专用博弈到通用推理模型
+
+如果把强化学习的发展分为三次浪潮：
+
+- **第一波（表格与经典近似，1989–2012）**：奠定了 MDP、TD、SARSA、Q-learning、策略梯度定理等全套理论地基；
+- **第二波（深度强化学习，2013–2021）**：DQN、PPO、SAC、AlphaZero 将深度神经网络作为价值与策略近似器，在 Atari、围棋、星际争霸和机器人控制上超越人类；
+- **第三波（大模型后训练与强化推理，2022 至今）**：InstructGPT / ChatGPT 用 **RLHF（PPO）** 让语言模型对齐人类意图；随后 **DPO** 简化了偏好优化；2025 年 DeepSeek-R1 则证明了仅靠 **GRPO + 可验证奖励（RLVR）**，就能在大语言模型中自发激发反思、验算与长链推理能力。
+
+<Callout type="tip">
+  读懂本书前 11 章的经典理论，你会发现 RLHF 和 GRPO 并不是凭空发明的“新魔法”，它们就是策略梯度定理、基线方差缩减与 PPO 信赖域截断在自回归序列上的自然延伸。
 </Callout>
 
-## 本节知识点
-
-- 心理学与最优控制两条源头
-- TD-Gammon（1992）
-- DQN 玩 Atari（2013/2015）
-- AlphaGo / AlphaZero / MuZero
-- RLHF 与 ChatGPT，GRPO 与推理模型
-
-## 规划的交互组件
-
-- **`<RLTimeline />`**：可横向滚动、点击展开的里程碑时间线
-
 <Cards>
-  <Card title="下一节：应用全景图" href="/docs/01-introduction/04-applications" />
+  <Card title="下一节：应用全景图" href="/docs/01-introduction/04-applications" description="游戏、机器人、推荐系统、芯片设计与大模型对齐如何建模为 MDP。" />
 </Cards>

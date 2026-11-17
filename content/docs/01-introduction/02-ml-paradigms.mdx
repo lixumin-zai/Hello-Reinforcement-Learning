@@ -6,24 +6,43 @@ icon: 'GitCompare'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { ParadigmComparison } from '@/components/docs/01-introduction/ParadigmComparison';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+人们常把机器学习划分为三大范式：**监督学习（Supervised Learning）**、**无监督学习（Unsupervised Learning）**与**强化学习（Reinforcement Learning）**。理解它们的边界，能帮你判断什么时候该用 RL，什么时候不该用。
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+---
+
+## 1. 指导性反馈 vs 评价性反馈
+
+- **监督学习是“指导性（Instructive）”的**：对于输入 $x$，训练集直接给出了标准答案 $y^*$。损失函数 $\mathcal{L}(f_\theta(x), y^*)$ 可微，梯度直接指向正确答案的方向。
+- **强化学习是“评价性（Evaluative）”的**：智能体在状态 $s$ 选了动作 $a$，收到奖励 $r = +3$。这个 $+3$ 到底算高还是算低？是否存在另一个没试过的动作 $a'$ 能拿 $+10$？如果不去主动探索，智能体永远不会知道。
+
+<ParadigmComparison />
+
+---
+
+## 2. 独立同分布 (i.i.d.) 假设的破裂
+
+在监督学习中，我们通常假设训练样本 $(x_i, y_i) \stackrel{\text{i.i.d.}}{\sim} \mathcal{D}$ 来自一个固定不变的数据分布。但在强化学习中：
+
+1. **相邻状态高度相关**：$S_{t+1}$ 是由 $S_t$ 走一步得来的，绝非独立采样；
+2. **策略改变导致数据分布漂移（Non-stationarity）**：当智能体更新了策略 $\pi_\theta$，它下一步会去往完全不同的状态区域，收集到的数据分布 $d^{\pi_\theta}(s)$ 随之改变。
+
+<Callout type="warn" title="为什么深度强化学习比监督学习更难训练？">
+  在监督学习中，数据集是静止的靶子；而在强化学习中，你每开一枪（更新一次参数），靶子本身（数据分布）和瞄准镜（自举价值目标）都在跟着移动！这正是第 9 章 DQN 引入「经验回放」与「目标网络」、第 11 章 PPO 引入「信赖域截断」的根本原因。
 </Callout>
 
-## 本节知识点
+---
 
-- 数据来源：标签 vs 结构 vs 交互
-- 反馈形式：即时正确答案 vs 评价性信号
-- i.i.d. 假设被打破
-- 探索与利用的独特困境
+## 3. 探索与利用的独特困境
 
-## 规划的交互组件
+因为反馈是评价性的，强化学习独有一个贯穿始终的核心矛盾——**探索（Exploration）与利用（Exploitation）的权衡**：
 
-- **`<ParadigmComparison />`**：Tab 切换三种范式，同一任务（如下棋）在三种范式下如何建模
+- **利用（Exploitation）**：选择目前已知能带来最高期望奖励的动作，赚取眼前的确定收益；
+- **探索（Exploration）**：尝试目前了解甚少的动作，牺牲短期收益以获取关于环境的信息，从而在未来做出更好的决策。
+
+我们将在 [第三部分：多臂老虎机](/docs/03-bandits) 中专门剖析这一困境的数学解法。
 
 <Cards>
-  <Card title="下一节：强化学习简史" href="/docs/01-introduction/03-history" />
+  <Card title="下一节：强化学习简史" href="/docs/01-introduction/03-history" description="从 Bellman 动态规划到 AlphaGo，再到 RLHF 与推理模型。" />
 </Cards>
