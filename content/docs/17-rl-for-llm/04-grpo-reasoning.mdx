@@ -1,0 +1,33 @@
+---
+title: 'GRPO 与推理模型'
+description: '组相对优势、可验证奖励与 DeepSeek-R1。'
+icon: 'Lightbulb'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- RLVR：可验证奖励
+- GRPO：组内标准化优势、去掉 Critic
+- DeepSeek-R1 的训练流程
+- “顿悟时刻”与长思维链
+
+## 规划的交互组件
+
+- **`<GRPOGroupAdvantage />`**：对同一问题采样一组回答，调整各自奖励，实时计算组内标准化优势
+
+## 规划的动效讲解
+
+- 🎬 **`grpo-group`**：同一提示采样 G 个回答、打分、组内标准化成优势、更新策略的动画
+
+<Cards>
+  <Card title="下一节：第十八部分：工程实践" href="/docs/18-practice" />
+</Cards>

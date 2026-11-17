@@ -1,0 +1,10 @@
+{
+  "title": "第一部分：强化学习导论",
+  "icon": "Compass",
+  "pages": [
+    "index",
+    "02-ml-paradigms",
+    "03-history",
+    "04-applications"
+  ]
+}

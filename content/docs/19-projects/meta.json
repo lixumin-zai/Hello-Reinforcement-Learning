@@ -1,0 +1,10 @@
+{
+  "title": "第十九部分：实战项目",
+  "icon": "Trophy",
+  "pages": [
+    "index",
+    "02-cartpole-dqn",
+    "03-ppo-lunar",
+    "04-grpo-llm"
+  ]
+}

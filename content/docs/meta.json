@@ -1,0 +1,31 @@
+{
+  "title": "Hello RL",
+  "pages": [
+    "index",
+    "notation",
+    "---基础篇---",
+    "01-introduction",
+    "02-mdp",
+    "03-bandits",
+    "---表格方法篇---",
+    "04-dynamic-programming",
+    "05-monte-carlo",
+    "06-temporal-difference",
+    "07-n-step-eligibility",
+    "---深度强化学习篇---",
+    "08-function-approximation",
+    "09-deep-q-learning",
+    "10-policy-gradient",
+    "11-trust-region",
+    "12-continuous-control",
+    "---前沿专题篇---",
+    "13-model-based",
+    "14-exploration",
+    "15-offline-imitation",
+    "16-multi-agent",
+    "17-rl-for-llm",
+    "---实践篇---",
+    "18-practice",
+    "19-projects"
+  ]
+}

@@ -1,0 +1,33 @@
+---
+title: 'PPO'
+description: '截断替代目标：工业界最常用的 RL 算法。'
+icon: 'Scissors'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 概率比 r_t(θ)
+- Clip 目标函数
+- PPO 完整训练流程
+- 关键实现细节（37 个技巧）
+
+## 规划的交互组件
+
+- **`<PPOClipVisualizer />`**：拖动优势正负与 ε，显示 clip 目标函数随 r_t 变化的折线
+
+## 规划的动效讲解
+
+- 🎬 **`ppo-clip`**：概率比 r 在 [1-ε, 1+ε] 区间外被“剪平”的目标函数动画
+
+<Cards>
+  <Card title="下一节：第十二部分：连续控制" href="/docs/12-continuous-control" />
+</Cards>

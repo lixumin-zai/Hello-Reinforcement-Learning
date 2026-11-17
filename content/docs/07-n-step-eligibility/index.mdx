@@ -1,0 +1,33 @@
+---
+title: 'n 步 TD'
+description: '向前看 n 步再自举。'
+icon: 'Route'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- n 步回报 G_\{t:t+n\}
+- n 步 TD 预测
+- n 步 SARSA
+- n 的偏差-方差权衡
+
+## 规划的交互组件
+
+- **`<NStepSpectrum />`**：拖动 n 从 1 到 ∞，备份图从 TD 逐渐变为 MC
+
+## 规划的动效讲解
+
+- 🎬 **`n-step-backup`**：n 步备份的长度逐渐增长，展示 TD(0) 到 MC 的连续谱
+
+<Cards>
+  <Card title="下一节：λ-回报与 TD(λ)" href="/docs/07-n-step-eligibility/02-td-lambda" />
+</Cards>

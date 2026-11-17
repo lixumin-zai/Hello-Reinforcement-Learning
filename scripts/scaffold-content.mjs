@@ -35,6 +35,8 @@ const write = (file, content, { overwrite = false } = {}) => {
   created.push(path.relative(root, file));
 };
 
+/** 转义 MDX 正文中的 { } < >，避免被解析为 JSX 表达式 */
+const esc = (s) => String(s).replace(/[{}<>]/g, (c) => ({ '{': '\\{', '}': '\\}', '<': '&lt;', '>': '&gt;' })[c]);
 const yamlStr = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
 // ---------- 1. 根 meta.json ----------
@@ -93,13 +95,13 @@ for (const ch of fw.chapters) {
       '',
       '## 本节知识点',
       '',
-      ...sec.points.map((p) => `- ${p}`),
+      ...sec.points.map((p) => `- ${esc(p)}`),
       '',
       ...(sec.components.length
-        ? ['## 规划的交互组件', '', ...sec.components.map((c) => `- **\`<${c.name} />\`**：${c.idea}`), '']
+        ? ['## 规划的交互组件', '', ...sec.components.map((c) => `- **\`<${c.name} />\`**：${esc(c.idea)}`), '']
         : []),
       ...(sec.motions.length
-        ? ['## 规划的动效讲解', '', ...sec.motions.map((m) => `- 🎬 **\`${m.id}\`**：${m.idea}`), '']
+        ? ['## 规划的动效讲解', '', ...sec.motions.map((m) => `- 🎬 **\`${m.id}\`**：${esc(m.idea)}`), '']
         : []),
       '<Cards>',
       `  <Card title=${JSON.stringify(`下一节：${nextTitle}`)} href=${JSON.stringify(nextHref)} />`,

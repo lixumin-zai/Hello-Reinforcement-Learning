@@ -1,0 +1,9 @@
+{
+  "title": "第五部分：蒙特卡洛方法",
+  "icon": "Dice5",
+  "pages": [
+    "index",
+    "02-mc-control",
+    "03-importance-sampling"
+  ]
+}

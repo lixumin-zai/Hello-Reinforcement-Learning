@@ -1,0 +1,9 @@
+{
+  "title": "第十一部分：信赖域与 PPO",
+  "icon": "ShieldCheck",
+  "pages": [
+    "index",
+    "02-trpo",
+    "03-ppo"
+  ]
+}

@@ -1,0 +1,33 @@
+---
+title: '策略评估'
+description: '迭代求解 V^π：Bellman 期望方程的不动点。'
+icon: 'Calculator'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 迭代策略评估算法
+- 同步 vs 原地更新
+- 收敛性：压缩映射
+- 网格世界示例
+
+## 规划的交互组件
+
+- **`<PolicyEvaluationStepper />`**：网格世界中逐次扫描更新 V 值，显示每轮的最大变化量 Δ
+
+## 规划的动效讲解
+
+- 🎬 **`policy-evaluation-sweep`**：价值像水波一样从终点向外扩散的扫描动画
+
+<Cards>
+  <Card title="下一节：策略迭代" href="/docs/04-dynamic-programming/02-policy-iteration" />
+</Cards>

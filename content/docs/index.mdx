@@ -1,0 +1,89 @@
+---
+title: 'Hello RL 全景指南'
+description: '一个用交互组件与动效讲解，带你从零走到 RLHF / GRPO 的强化学习学习平台。'
+icon: 'Sparkles'
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+## 为什么要学强化学习？
+
+监督学习教会机器“模仿正确答案”，而**强化学习（Reinforcement Learning, RL）**教会机器“在没有标准答案的世界里，通过试错找到最好的做法”。
+
+从击败世界冠军的 AlphaGo，到让 ChatGPT 学会“好好说话”的 RLHF，再到让 DeepSeek-R1 学会长链推理的 GRPO —— 过去十年里几乎所有“让 AI 学会决策”的突破，背后都是同一套数学：
+
+$$
+\pi^* = \arg\max_\pi \; \mathbb{E}_\pi\Big[\sum_{t=0}^{\infty} \gamma^t R_{t+1}\Big]
+$$
+
+本指南分为 **5 篇、19 个部分**，从最简单的多臂老虎机开始，一路走到深度强化学习与大模型后训练。
+
+---
+
+## 三种阅读方式
+
+本站的每个知识点都会用三种形式“共奏”：
+
+| 形式 | 负责什么 | 你应该怎么用 |
+| --- | --- | --- |
+| 📝 **正文** | 讲清楚“为什么”：直觉、推导、算法伪代码 | 慢慢读，推一遍公式 |
+| 📊 **交互组件** | 讲清楚“参数”：拖动 γ、α、ε，立刻看到结果 | 亲手调，把直觉调出来 |
+| 🎬 **动效讲解** | 讲清楚“过程”：一次更新、一次备份是怎么发生的 | 反复播放、逐帧拖动 |
+
+<Callout type="info" title="同一套算法内核">
+  所有交互组件与动效讲解都调用 `src/lib/rl` 中同一套**确定性**的算法实现（带种子的随机数）。你在动画里看到的 Q-learning，和你在交互组件里亲手训练的 Q-learning，是同一段代码。
+</Callout>
+
+---
+
+## 学习路径推荐
+
+### 🎯 路径一：入门速通（约 6 小时）
+
+只想搞懂 RL 在做什么、核心算法长什么样。
+
+<Cards>
+  <Card title="第一部分：强化学习导论" href="/docs/01-introduction" />
+  <Card title="第二部分：马尔可夫决策过程" href="/docs/02-mdp" />
+  <Card title="第四部分：动态规划" href="/docs/04-dynamic-programming" />
+  <Card title="第六部分：时序差分学习" href="/docs/06-temporal-difference" />
+</Cards>
+
+### 🧠 路径二：深度强化学习工程师
+
+需要训练真实任务的智能体（游戏、机器人、推荐）。
+
+<Cards>
+  <Card title="第九部分：深度 Q 网络" href="/docs/09-deep-q-learning" />
+  <Card title="第十部分：策略梯度" href="/docs/10-policy-gradient" />
+  <Card title="第十一部分：信赖域与 PPO" href="/docs/11-trust-region" />
+  <Card title="第十八部分：工程实践" href="/docs/18-practice" />
+</Cards>
+
+### 🤖 路径三：大模型后训练（RLHF / DPO / GRPO）
+
+关心 LLM 对齐与推理模型。
+
+<Cards>
+  <Card title="第十部分：策略梯度" href="/docs/10-policy-gradient" />
+  <Card title="第十一部分：信赖域与 PPO" href="/docs/11-trust-region" />
+  <Card title="第十七部分：强化学习与大模型" href="/docs/17-rl-for-llm" />
+  <Card title="项目四：GRPO 微调小模型" href="/docs/19-projects/04-grpo-llm" />
+</Cards>
+
+---
+
+## 全书结构
+
+| 篇 | 部分 | 核心问题 |
+| --- | --- | --- |
+| 基础篇 | 01 导论 · 02 MDP · 03 老虎机 | RL 问题如何形式化？探索与利用如何平衡？ |
+| 表格方法篇 | 04 DP · 05 MC · 06 TD · 07 资格迹 | 状态可枚举时，如何求出最优策略？ |
+| 深度强化学习篇 | 08 函数近似 · 09 DQN · 10 策略梯度 · 11 PPO · 12 连续控制 | 状态巨大、动作连续时怎么办？ |
+| 前沿专题篇 | 13 基于模型 · 14 探索 · 15 离线/模仿 · 16 多智能体 · 17 大模型 | RL 的前沿在哪里？ |
+| 实践篇 | 18 工程实践 · 19 实战项目 | 如何真正把模型训起来？ |
+
+<Callout type="tip" title="准备好了吗？">
+  先花 3 分钟浏览 [符号约定](/docs/notation)，然后从 [第一部分：强化学习导论](/docs/01-introduction) 开始吧！
+</Callout>

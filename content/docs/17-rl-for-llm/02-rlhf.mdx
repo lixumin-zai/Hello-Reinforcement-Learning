@@ -1,0 +1,33 @@
+---
+title: 'RLHF'
+description: '奖励模型 + PPO：ChatGPT 的对齐配方。'
+icon: 'ThumbsUp'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- SFT → RM → PPO 三阶段
+- Bradley-Terry 偏好模型
+- PPO 中的四个模型
+- 奖励黑客（Reward Hacking）
+
+## 规划的交互组件
+
+- **`<BradleyTerryDemo />`**：调整两个回答的奖励分差，查看偏好概率 σ(r1-r2) 与损失
+
+## 规划的动效讲解
+
+- 🎬 **`rlhf-pipeline`**：SFT、奖励模型、PPO 三阶段流水线及四个模型之间的数据流动画
+
+<Cards>
+  <Card title="下一节：DPO 与直接偏好优化" href="/docs/17-rl-for-llm/03-dpo" />
+</Cards>

@@ -1,0 +1,10 @@
+{
+  "title": "第四部分：动态规划",
+  "icon": "Grid3x3",
+  "pages": [
+    "index",
+    "02-policy-iteration",
+    "03-value-iteration",
+    "04-gpi"
+  ]
+}

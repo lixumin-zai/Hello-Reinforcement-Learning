@@ -1,0 +1,33 @@
+---
+title: 'Actor-Critic'
+description: '演员负责行动，评论家负责打分。'
+icon: 'Drama'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- Actor 与 Critic 的分工
+- 优势函数 A(s,a)
+- A2C / A3C
+- 广义优势估计 GAE
+
+## 规划的交互组件
+
+- **`<GAELambdaExplorer />`**：调整 γ 与 λ，查看 GAE 对各步 TD 误差的加权
+
+## 规划的动效讲解
+
+- 🎬 **`actor-critic-loop`**：Actor 出动作、Critic 计算优势、双方分别更新的协作动画
+
+<Cards>
+  <Card title="下一节：第十一部分：信赖域与 PPO" href="/docs/11-trust-region" />
+</Cards>

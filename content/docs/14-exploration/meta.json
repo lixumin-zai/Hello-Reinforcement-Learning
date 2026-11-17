@@ -1,0 +1,9 @@
+{
+  "title": "第十四部分：探索",
+  "icon": "Telescope",
+  "pages": [
+    "index",
+    "02-intrinsic-motivation",
+    "03-go-explore"
+  ]
+}

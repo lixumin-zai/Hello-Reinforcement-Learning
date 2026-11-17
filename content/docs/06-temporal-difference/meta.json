@@ -1,0 +1,10 @@
+{
+  "title": "第六部分：时序差分学习",
+  "icon": "Timer",
+  "pages": [
+    "index",
+    "02-sarsa",
+    "03-q-learning",
+    "04-double-q"
+  ]
+}

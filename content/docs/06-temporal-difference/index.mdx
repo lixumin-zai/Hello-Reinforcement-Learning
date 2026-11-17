@@ -1,0 +1,33 @@
+---
+title: 'TD(0) 预测'
+description: 'TD 误差 δ 与自举。'
+icon: 'Timer'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- TD 目标与 TD 误差
+- MC vs TD vs DP 的备份对比
+- 随机游走示例
+- TD 的优势：在线、增量
+
+## 规划的交互组件
+
+- **`<RandomWalkTDvsMC />`**：5 状态随机游走，同时运行 TD 与 MC，对比 RMS 误差曲线
+
+## 规划的动效讲解
+
+- 🎬 **`td-error`**：TD 目标 r + γV(s') 与当前 V(s) 的差 δ 被可视化为一根“弹簧”拉动估计值
+
+<Cards>
+  <Card title="下一节：SARSA：在策略 TD 控制" href="/docs/06-temporal-difference/02-sarsa" />
+</Cards>

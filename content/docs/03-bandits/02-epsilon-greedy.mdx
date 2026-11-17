@@ -1,0 +1,33 @@
+---
+title: 'ε-贪心与乐观初值'
+description: '最朴素但有效的探索策略。'
+icon: 'Shuffle'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- ε-greedy 算法
+- ε 衰减
+- 乐观初始值
+- 非平稳问题与常数步长
+
+## 规划的交互组件
+
+- **`<EpsilonGreedyRace />`**：多个 ε 值的智能体并行运行，实时绘制平均奖励与最优动作比例曲线
+
+## 规划的动效讲解
+
+- 🎬 **`epsilon-greedy-choice`**：每一步掷骰决定探索或利用，选中的臂发光，估计值柱逐步更新
+
+<Cards>
+  <Card title="下一节：UCB 与 Thompson 采样" href="/docs/03-bandits/03-ucb-thompson" />
+</Cards>

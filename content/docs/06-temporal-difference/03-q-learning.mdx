@@ -1,0 +1,33 @@
+---
+title: 'Q-learning：离策略 TD 控制'
+description: '直接学习最优动作价值 Q*。'
+icon: 'Brain'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- Q-learning 更新公式
+- max 操作与离策略
+- Q 表的可视化
+- 收敛条件
+
+## 规划的交互组件
+
+- **`<QLearningGrid />`**：网格世界 Q-learning 训练器：可调 α/γ/ε，显示 Q 表四向三角热力图与回合奖励曲线
+
+## 规划的动效讲解
+
+- 🎬 **`q-learning-update`**：单步 Q 更新：智能体移动、取 max Q(s',·)、计算 TD 目标、更新单元格
+
+<Cards>
+  <Card title="下一节：最大化偏差与 Double Q-learning" href="/docs/06-temporal-difference/04-double-q" />
+</Cards>

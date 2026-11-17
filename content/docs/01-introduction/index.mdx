@@ -1,0 +1,33 @@
+---
+title: '什么是强化学习'
+description: '从试错中学习：智能体、环境、奖励三要素。'
+icon: 'Compass'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 试错学习与延迟奖励
+- 智能体-环境交互循环
+- 奖励假设（Reward Hypothesis）
+- 一个直观例子：训练小狗与玩游戏
+
+## 规划的交互组件
+
+- **`<AgentEnvLoop />`**：可点击单步推进的 agent-environment 交互循环，展示 S_t → A_t → R_\{t+1\}, S_\{t+1\}
+
+## 规划的动效讲解
+
+- 🎬 **`agent-env-loop`**：智能体观察状态、做出动作、环境返回奖励与新状态的循环动画（开场主视觉）
+
+<Cards>
+  <Card title="下一节：三大学习范式对比" href="/docs/01-introduction/02-ml-paradigms" />
+</Cards>

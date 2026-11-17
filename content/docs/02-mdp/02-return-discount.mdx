@@ -1,0 +1,33 @@
+---
+title: '回报与折扣因子'
+description: '为什么要折扣？γ 如何决定智能体的“远见”。'
+icon: 'Percent'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 回报 G_t 的定义
+- 折扣因子 γ 的三种解释
+- 分幕式 vs 持续式任务
+- 有效视野 1/(1-γ)
+
+## 规划的交互组件
+
+- **`<DiscountSlider />`**：拖动 γ，实时显示未来奖励的权重衰减柱状图与 G_t 值
+
+## 规划的动效讲解
+
+- 🎬 **`discounted-return`**：奖励序列逐个乘以 γ^k 缩小并汇聚成 G_t 的动画
+
+<Cards>
+  <Card title="下一节：策略与价值函数" href="/docs/02-mdp/03-policy-value" />
+</Cards>

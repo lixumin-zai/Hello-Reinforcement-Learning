@@ -1,0 +1,29 @@
+---
+title: '连续动作空间'
+description: '高斯策略与确定性策略。'
+icon: 'Bot'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 离散 vs 连续动作
+- 高斯策略与重参数化
+- 动作边界与 tanh 压缩
+- MuJoCo 基准
+
+## 规划的交互组件
+
+- **`<GaussianPolicyViz />`**：调整均值与标准差，查看动作采样分布与 tanh 压缩后的分布
+
+<Cards>
+  <Card title="下一节：DDPG 与 TD3" href="/docs/12-continuous-control/02-ddpg-td3" />
+</Cards>

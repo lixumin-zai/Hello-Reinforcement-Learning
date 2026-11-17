@@ -1,0 +1,33 @@
+---
+title: '状态、动作与马尔可夫性'
+description: 'MDP 五元组 (S, A, P, R, γ) 与马尔可夫性质。'
+icon: 'Network'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 马尔可夫链 → 马尔可夫奖励过程 → MDP
+- 转移概率 P(s'|s,a)
+- 马尔可夫性：未来只依赖当前
+- 部分可观测 POMDP 简介
+
+## 规划的交互组件
+
+- **`<MDPGraphExplorer />`**：可交互的 MDP 状态转移图（学生 MDP），点击动作查看概率分支并采样轨迹
+
+## 规划的动效讲解
+
+- 🎬 **`markov-chain-walk`**：一个粒子在马尔可夫链上随机游走，状态访问频率条形图逐渐收敛
+
+<Cards>
+  <Card title="下一节：回报与折扣因子" href="/docs/02-mdp/02-return-discount" />
+</Cards>

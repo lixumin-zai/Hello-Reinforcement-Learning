@@ -1,0 +1,33 @@
+---
+title: '蒙特卡洛预测'
+description: '用平均回报估计 V^π。'
+icon: 'Dice5'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 从经验中学习
+- 首次访问 vs 每次访问 MC
+- 增量式均值
+- 21 点（Blackjack）示例
+
+## 规划的交互组件
+
+- **`<MCPredictionDemo />`**：生成一条轨迹，逐步回溯计算每个状态的 G，并更新均值
+
+## 规划的动效讲解
+
+- 🎬 **`mc-return-backtrack`**：回合结束后从终点反向累加回报 G 并写入访问过的状态
+
+<Cards>
+  <Card title="下一节：蒙特卡洛控制" href="/docs/05-monte-carlo/02-mc-control" />
+</Cards>

@@ -1,0 +1,34 @@
+---
+title: 'UCB 与 Thompson 采样'
+description: '基于不确定性的“聪明”探索。'
+icon: 'TrendingUp'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 面对不确定性的乐观原则
+- UCB1 公式与置信上界
+- Beta-Bernoulli Thompson Sampling
+- 三种策略的遗憾对比
+
+## 规划的交互组件
+
+- **`<UCBVisualizer />`**：每个臂显示估计值 + 置信区间条，单步观察 UCB 选择哪一臂
+- **`<ThompsonBetaViewer />`**：Beta 分布曲线随观测更新，采样点决定选择
+
+## 规划的动效讲解
+
+- 🎬 **`ucb-confidence`**：置信区间随拉动次数收缩、上界最高的臂被选中的动画
+
+<Cards>
+  <Card title="下一节：梯度老虎机与上下文老虎机" href="/docs/03-bandits/04-contextual" />
+</Cards>

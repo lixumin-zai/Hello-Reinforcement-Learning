@@ -1,0 +1,70 @@
+---
+title: '符号约定'
+description: '全书统一使用的数学符号（与 Sutton & Barto 第二版保持一致）。'
+icon: 'BookA'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+
+<Callout type="info">
+  本站符号基本沿用 Sutton & Barto《Reinforcement Learning: An Introduction》（第二版）。大写字母表示随机变量，小写字母表示其取值。所有章节、交互组件与动效讲解都遵守这张表。
+</Callout>
+
+## 基本元素
+
+| 符号 | 含义 |
+| --- | --- |
+| $s, s'$ | 状态（state），$s'$ 通常表示下一状态 |
+| $a$ | 动作（action） |
+| $r$ | 奖励（reward） |
+| $\mathcal{S}, \mathcal{A}, \mathcal{R}$ | 状态集合、动作集合、奖励集合 |
+| $S_t, A_t, R_t$ | 第 $t$ 步的状态、动作、奖励（随机变量） |
+| $t, T$ | 离散时间步；回合终止时刻 |
+| $p(s', r \mid s, a)$ | 环境动力学：在 $s$ 执行 $a$ 后转移到 $s'$ 并获得 $r$ 的概率 |
+| $\gamma$ | 折扣因子，$0 \le \gamma \le 1$ |
+
+## 回报与价值
+
+| 符号 | 含义 |
+| --- | --- |
+| $G_t$ | 从 $t$ 开始的（折扣）回报：$G_t = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}$ |
+| $G_{t:t+n}$ | $n$ 步回报 |
+| $G_t^\lambda$ | $\lambda$-回报 |
+| $\pi, \pi(a \mid s)$ | 策略；在状态 $s$ 选择动作 $a$ 的概率 |
+| $v_\pi(s)$ | 策略 $\pi$ 下状态 $s$ 的价值 |
+| $q_\pi(s, a)$ | 策略 $\pi$ 下状态-动作对的价值 |
+| $v_*, q_*$ | 最优状态价值、最优动作价值 |
+| $V, Q$ | $v_\pi, q_\pi$ 的估计（表格） |
+| $A(s, a)$ | 优势函数 $q(s,a) - v(s)$ |
+
+## 学习相关
+
+| 符号 | 含义 |
+| --- | --- |
+| $\alpha$ | 步长 / 学习率 |
+| $\varepsilon$ | ε-贪心中的探索概率 |
+| $\delta_t$ | TD 误差：$\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$ |
+| $\lambda$ | 资格迹衰减参数 / GAE 参数 |
+| $\mathbf{w}$ | 价值函数近似的权重向量，$\hat v(s, \mathbf{w})$ |
+| $\boldsymbol{\theta}$ | 策略参数，$\pi_{\boldsymbol\theta}$ |
+| $J(\boldsymbol\theta)$ | 策略的性能目标 |
+| $\rho_t$ | 重要性采样比 $\pi(A_t\mid S_t) / b(A_t\mid S_t)$ |
+| $\mathbf{z}_t$ | 资格迹向量 |
+
+## 两个最重要的方程
+
+**Bellman 期望方程**
+
+$$
+v_\pi(s) = \sum_a \pi(a\mid s) \sum_{s', r} p(s', r \mid s, a)\big[r + \gamma v_\pi(s')\big]
+$$
+
+**Bellman 最优方程**
+
+$$
+v_*(s) = \max_a \sum_{s', r} p(s', r \mid s, a)\big[r + \gamma v_*(s')\big]
+$$
+
+<Callout type="tip">
+  后面的几乎所有算法 —— 动态规划、TD、Q-learning、DQN、Actor-Critic —— 都可以看成是在用不同方式“近似地求解”这两个方程。
+</Callout>

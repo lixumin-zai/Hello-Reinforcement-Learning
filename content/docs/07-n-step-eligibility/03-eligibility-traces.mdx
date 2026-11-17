@@ -1,0 +1,33 @@
+---
+title: '资格迹'
+description: '后向视角：给“最近、最常访问”的状态记功。'
+icon: 'Sparkles'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 累积迹 vs 替换迹
+- 后向视角 TD(λ)
+- SARSA(λ)
+- 信用分配问题
+
+## 规划的交互组件
+
+- **`<EligibilityTraceViz />`**：智能体走过的路径留下逐渐衰减的“迹”，获得奖励时按迹更新
+
+## 规划的动效讲解
+
+- 🎬 **`eligibility-trace-decay`**：路径上的光迹随时间按 γλ 衰减，奖励到达时沿迹回传
+
+<Cards>
+  <Card title="下一节：第八部分：函数近似" href="/docs/08-function-approximation" />
+</Cards>

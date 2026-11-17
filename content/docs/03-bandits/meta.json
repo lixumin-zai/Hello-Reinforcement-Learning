@@ -1,0 +1,10 @@
+{
+  "title": "第三部分：多臂老虎机",
+  "icon": "Dices",
+  "pages": [
+    "index",
+    "02-epsilon-greedy",
+    "03-ucb-thompson",
+    "04-contextual"
+  ]
+}

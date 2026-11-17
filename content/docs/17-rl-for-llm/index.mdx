@@ -1,0 +1,33 @@
+---
+title: '把语言模型看成策略'
+description: 'token 级 MDP：状态、动作与奖励。'
+icon: 'MessageSquare'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- LLM 作为策略 π_θ(token|context)
+- 序列级奖励与稀疏性
+- KL 惩罚与参考模型
+- 后训练流程全景
+
+## 规划的交互组件
+
+- **`<TokenMDPViz />`**：逐 token 生成文本，展示每一步的状态、动作概率分布与最终奖励
+
+## 规划的动效讲解
+
+- 🎬 **`llm-as-policy`**：LLM 逐 token 采样形成回答、奖励模型打分、梯度回传的动画
+
+<Cards>
+  <Card title="下一节：RLHF" href="/docs/17-rl-for-llm/02-rlhf" />
+</Cards>

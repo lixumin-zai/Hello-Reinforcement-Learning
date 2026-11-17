@@ -1,0 +1,10 @@
+{
+  "title": "第八部分：函数近似",
+  "icon": "Spline",
+  "pages": [
+    "index",
+    "02-linear-features",
+    "03-semi-gradient",
+    "04-deadly-triad"
+  ]
+}

@@ -1,0 +1,33 @@
+---
+title: 'DQN'
+description: '用卷积网络从像素学习 Atari 游戏。'
+icon: 'Cpu'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+
+<Callout type="warn" title="🚧 本节正在建设中">
+  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+</Callout>
+
+## 本节知识点
+
+- 神经网络作为 Q 函数
+- 损失函数与目标
+- DQN 网络结构
+- Atari 预处理
+
+## 规划的交互组件
+
+- **`<DQNArchitecture />`**：可悬停的 DQN 网络结构图：帧堆叠 → 卷积 → 全连接 → 每个动作的 Q 值
+
+## 规划的动效讲解
+
+- 🎬 **`dqn-pipeline`**：像素帧进入网络、输出 Q 值、选动作、存经验、采样批次、更新网络的流水线动画
+
+<Cards>
+  <Card title="下一节：经验回放与目标网络" href="/docs/09-deep-q-learning/02-replay-target" />
+</Cards>
