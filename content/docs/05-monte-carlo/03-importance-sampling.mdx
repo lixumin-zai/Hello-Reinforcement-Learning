@@ -6,27 +6,109 @@ icon: 'Scale'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { ImportanceSamplingLab } from '@/components/docs/05-monte-carlo/ImportanceSamplingLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="20 分钟"
+  prereqs={['5.2 MC 控制', '概率测度变换直觉']}
+  goals={[
+    '彻底区分在策略 (On-Policy) 与离策略 (Off-Policy) 学习及其「覆盖性假设」',
+    '逐行推导轨迹级重要性采样比 ρ_{t:T-1}，并看懂为什么环境转移概率 p(s′|s,a) 奇迹般消掉了',
+    '通过实验直观理解普通 IS（无偏、方差可无穷大）与加权 IS（有偏、低方差）的剧烈差异',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 鱼与熊掌想兼得：引入“行为策略 $b$”与“目标策略 $\pi$”
+
+上一节的 On-Policy $\varepsilon$-soft 控制有一个妥协：为了保证持续探索，它学到的最优策略其实是一个**被迫带噪声的次优策略**。如果我既想**大胆探索收集数据**（甚至直接复用人类专家的历史日志），又想**学出纯粹的最优确定性策略 $\pi_*$**，怎么办？
+
+答案是把“干活的”和“学习的”拆成两个独立策略——**离策略学习（Off-Policy Learning）**：
+- **目标策略（Target Policy）$\pi$**：我们真正想评估或优化的策略（通常是确定性贪心策略）；
+- **行为策略（Behavior Policy）$b$**：实际与环境交互、负责采样的策略（通常是带有充分随机探索的软策略）。
+
+### 覆盖性假设（Assumption of Coverage）
+
+要想用 $b$ 采出的数据评估 $\pi$，必须满足一个铁律：**凡是 $\pi$ 可能选的动作，$b$ 必须以非零概率也能选到**：
+
+$$
+\pi(a \mid s) > 0 \;\;\Longrightarrow\;\; b(a \mid s) > 0 \qquad (\forall s \in \mathcal{S}, a \in \mathcal{A})
+$$
+
+---
+
+## 2. 逐行推导：为什么未知环境模型 $p$ 奇迹般地约掉了？
+
+给定从时刻 $t$ 开始的一条轨迹 $A_t, S_{t+1}, A_{t+1}, \dots, S_T$，它在策略 $\pi$ 下发生的概率为：
+
+$$
+\mathbb{P}_\pi\big(A_t, S_{t+1}, \dots, S_T \mid S_t\big) = \prod_{k=t}^{T-1} \pi(A_k \mid S_k)\, p(S_{k+1} \mid S_k, A_k)
+$$
+
+它在行为策略 $b$ 下发生的概率为：
+
+$$
+\mathbb{P}_b\big(A_t, S_{t+1}, \dots, S_T \mid S_t\big) = \prod_{k=t}^{T-1} b(A_k \mid S_k)\, p(S_{k+1} \mid S_k, A_k)
+$$
+
+两式相除，求**重要性采样比（Importance Sampling Ratio）** $\rho_{t:T-1}$：
+
+$$
+\rho_{t:T-1} \;\doteq\; \frac{\prod_{k=t}^{T-1} \pi(A_k \mid S_k)\,\cancel{p(S_{k+1} \mid S_k, A_k)}}{\prod_{k=t}^{T-1} b(A_k \mid S_k)\,\cancel{p(S_{k+1} \mid S_k, A_k)}} \;=\; \prod_{k=t}^{T-1} \frac{\pi(A_k \mid S_k)}{b(A_k \mid S_k)}
+$$
+
+**惊喜发生了！** 我们完全不知道的复杂环境转移概率 $p(S_{k+1}\mid S_k, A_k)$ 在分子分母里**一模一样，全部精准消掉**！只要我们知道自己策略和行为策略的概率比，就能做无模型离策略矫正：$\mathbb{E}_b[\rho_{t:T-1} G_t \mid S_t = s] = v_\pi(s)$。
+
+---
+
+## 3. 普通 IS vs 加权 IS：为什么连乘会让方差原地爆炸？
+
+收集到 $n$ 条经过状态 $s$ 的回报样本 $G_i$ 及对应的重要性比 $\rho_i$ 后，有两种汇总方式：
+
+1. **普通重要性采样（Ordinary IS）**：直接除以样本总数 $n$：
+   $$
+   V_{\text{OIS}}(s) \doteq \frac{\sum_{i=1}^{n} \rho_i G_i}{n}
+   $$
+   - 数学上**严格无偏**，但因为 $\rho_i$ 是连续 $T$ 步概率比的连乘积，只要有一条长轨迹的 $\rho_i$ 达到 $2^{10} = 1024$，它就能把整个均值瞬间拉爆——**在很多简单环境里，普通 IS 的方差甚至严格是无穷大 ($\infty$)！**
+2. **加权重要性采样（Weighted IS）**：分母改除以**所有权重之和** $\sum_{i=1}^{n} \rho_i$：
+   $$
+   V_{\text{WIS}}(s) \doteq \frac{\sum_{i=1}^{n} \rho_i G_i}{\sum_{i=1}^{n} \rho_i}
+   $$
+   - 有限样本下略有偏差（随着 $n \to \infty$ 偏差趋于 $0$，是一致估计），但任何单条样本的权重占比被死死锁在 $[0, 1]$ 内，**方差永远有界且极小**——工程中几乎总是首选加权 IS！
+
+### 🎬 Remotion 动作讲解：连乘尖峰爆炸 vs 加权天平归一化
+
+<MotionPlayer id="is-reweight-scale" />
+
+### ⚖️ 交互实验：亲手触发普通重要性采样的方差爆炸！
+
+下方精确复现了 Sutton & Barto 例 5.5（单状态自环环境，真实价值 $v_\pi = 1.0$）。尝试把 `b(左)` 调低或把自环概率推到 `0.90`，看红色曲线如何冲上云霄而绿色曲线稳稳紧贴虚线 `1.0`：
+
+<ImportanceSamplingLab />
+
+<Callout type="info" title="预告：为什么下一章的 Q-learning 完全没有连乘方差爆炸？">
+  蒙特卡洛离策略之所以这么容易方差爆炸，是因为它要乘**整条完整轨迹** $T$ 步的 $\frac{\pi}{b}$！而在第 6 章的**时序差分 (TD)** 与 **Q-learning** 中，每次只向前看 **1 步**，彻底摆脱了漫长的连乘积——甚至在 Q-learning 里连重要性采样比 $\rho$ 都不需要乘！
 </Callout>
 
-## 核心知识点
+---
 
-- 目标策略 π、行为策略 b 与覆盖性假设 (Coverage)
-- 重要性采样比 ρ_\{t:T-1\} 的数学推导
-- 普通重要性采样（无偏但方差可能无穷大）vs 加权重要性采样（有偏但一致且方差极低）
-
-## 规划交互
-
-- **`<ImportanceSamplingLab />`**：重要性采样方差爆炸实验室：调节策略差异度与回合步长 T，实时绘制普通 IS 剧烈尖峰 vs 加权 IS 平滑收敛对比曲线
-
-## 规划动效
-
-- 🎬 **`is-reweight-scale`**：牌桌杠杆重加权风：不同轨迹样本乘以重要性比 ρ 后发生体积膨胀/萎缩，直观呈现极端轨迹如何把普通均值拉偏
+<QuizBox
+  questions={[
+    {
+      question: '在离策略蒙特卡洛中，为什么未知的环境转移概率 p(s′|s,a) 不会影响重要性采样比 ρ_{t:T-1} 的计算？',
+      options: ['因为假设环境转移概率恒等于 1', '因为在目标策略与行为策略的轨迹概率之比中，环境转移概率在分子和分母中完全相同并相互约去', '因为重要性采样只适用于无状态老虎机', '因为环境转移概率由神经网络预测'],
+      answerIndex: 1,
+      explanation: '无论遵循策略 π 还是 b，同一套环境物理动力学 p(s′|s,a) 保持不变，因此在联合概率比中精确抵消。',
+    },
+    {
+      question: '假设行为策略 b 永远以 0.5 选动作 A，目标策略 π 永远选动作 A（概率 1.0）。如果一条成功轨迹连续选了 8 次动作 A，它的重要性采样比 ρ 是多少？',
+      options: ['8', '16', '256', '0.5⁸'],
+      answerIndex: 2,
+      explanation: '每一步比值是 1.0 / 0.5 = 2，连续 8 步连乘 ρ = 2⁸ = 256！这直观解释了为什么轨迹越长，普通 IS 的方差呈指数级爆炸。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：第 6 章：时序差分学习——TD、SARSA、Q-learning 与资格迹" href="/docs/06-temporal-difference" />
+  <Card title="进入第 6 章：时序差分学习——TD、SARSA、Q-learning 与资格迹 ⚡" href="/docs/06-temporal-difference" description="无需等回合结束、迈出一步就自举学习！体验悬崖行走双智能体竞速与荧光资格迹迷宫！" />
 </Cards>

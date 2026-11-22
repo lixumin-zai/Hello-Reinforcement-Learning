@@ -6,28 +6,139 @@ icon: 'Footprints'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { CliffWalkingRace } from '@/components/docs/06-temporal-difference/CliffWalkingRace';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="24 分钟"
+  prereqs={['6.1 TD(0) 预测', '5.2 从 V 转向 Q']}
+  goals={[
+    '彻底分清 SARSA（在策略）与 Q-learning（离策略）更新式的一字之差与行为天壤之别',
+    '在悬崖行走动画竞速中理解“训练期在线收益”与“贪心最优路径”的经典悖论',
+    '掌握 Expected SARSA 如何用加权期望消除下一步采样方差并同时统一两者',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. 一字之差，两种截然不同的性格
 
-## 核心知识点
+把 6.1 节的 TD(0) 从状态价值 $V(s)$ 推广到动作价值 $Q(s, a)$，就诞生了表格无模型控制史上最著名的“双子星”——**SARSA** 与 **Q-learning**。仔细对比它们更新公式里**仅仅不同的一处**：
 
-- SARSA 五元组 (S, A, R, S′, A′) 与在策略风险意识
-- Q-learning 离策略 max 备份与 Bellman 最优方程近似
-- Expected SARSA 如何消除下一步采样方差
-- 悬崖行走在线收益 vs 贪心最优路径的经典悖论
+### ① SARSA（在策略 On-Policy TD 控制）
 
-## 规划交互
+智能体用当前含探索噪声的策略（如 $\varepsilon$-greedy）实际采样出五元组 $(S_t, A_t, R_{t+1}, S_{t+1}, A_{t+1})$，并直接用**下一步真正要执行的动作 $A_{t+1}$** 来构造自举目标：
 
-- **`<CliffWalkingRace />`**：4×12 悬崖行走双智能体同屏动画竞速台：SARSA 绿队与 Q-learning 蓝队实时同屏行走（含掉崖闪烁动画、Q 表热力图与回合奖励实时折线对比）
+$$
+Q(S_t, A_t) \;\leftarrow\; Q(S_t, A_t) + \alpha\Big[\, R_{t+1} + \gamma \, \underbrace{Q(S_{t+1}, A_{t+1})}_{\text{下一步实际含噪动作}} - Q(S_t, A_t) \,\Big]
+$$
 
-## 规划动效
+### ② Q-learning（离策略 Off-Policy TD 控制，Watkins 1989）
 
-- 🎬 **`sarsa-vs-q-split`**：分屏竞速与四象限着色风：上半屏 SARSA 绕行安全高地、下半屏 Q-learning 贴崖疾行并展示单步 max Q(s′,·) 离策略更新
+不管下一步实际因为 $\varepsilon$ 探索走了什么歪路，Q-learning 永远假定从 $S_{t+1}$ 开始执行**最完美的贪心动作**，直接取 $\max_{a'} Q(S_{t+1}, a')$ 作为自举目标：
+
+$$
+Q(S_t, A_t) \;\leftarrow\; Q(S_t, A_t) + \alpha\Big[\, R_{t+1} + \gamma \, \underbrace{\max_{a' \in \mathcal{A}} Q(S_{t+1}, a')}_{\text{理想最优动作（无需重要性采样！）}} - Q(S_t, A_t) \,\Big]
+$$
+
+> **为何 Q-learning 是离策略却不需要 5.3 节那种可怕的重要性采样比 $\rho$？**  
+> 因为在单步 Bellman 最优备份里，$Q(S_t, A_t)$ 的条件已经固定了当前动作 $A_t$，而下一刻我们直接解析地取了 $\max_{a'} Q(S_{t+1}, a')$（而不是对后续整条随机轨迹求均值），彻底绕开了连乘 $\frac{\pi}{b}$ 的方差爆炸！
+
+---
+
+## 2. 经典名场面：悬崖行走（Cliff Walking）的性格对决
+
+想象一条 $4 \times 12$ 的海边悬崖：起点在左下角，宝藏在右下角，两者之间底边整整 10 格全是掉下去扣 `-100` 分并强制传回起点的万丈深渊，其余每走一步扣 `-1`。
+
+### 🎬 Remotion 动作讲解：分屏竞速揭示 SARSA 与 Q-learning 的分岔
+
+<MotionPlayer id="sarsa-vs-q-split" />
+
+### 🧗 交互实验：双智能体同屏动画竞速 + 实时回合得分曲线
+
+观察下方动画中的**绿球（SARSA）**与**蓝球（Q-learning）**，并试着把探索率 `ε` 从 `0.10` 拉高到 `0.22`，亲眼看两者在线平均得分的鸿沟如何瞬间拉大：
+
+<CliffWalkingRace />
+
+这个实验揭示了一条极其深刻的工程真理：
+- **如果你在真实物理世界里“边学边上岗”**（例如实体机器人或线上真金白银投放，探索失误的代价要由你自己买单），**在策略 SARSA 更安全**，因为它把探索时的失足风险忠实计入了价值；
+- **如果你在高速虚拟仿真器里训练，最后关掉 $\varepsilon$ 离线部署**，**离策略 Q-learning 更好**，因为它直奔真正的理论最短最优路径 $q_*$！
+
+---
+
+## 3. Expected SARSA：优雅统一两者的低方差升级版
+
+SARSA 在更新时把 $Q(S_{t+1}, A_{t+1})$ 押注在**单次随机抽样的 $A_{t+1}$** 上，引入了额外的动作选择方差。既然当前策略 $\pi(a'\mid S_{t+1})$ 就在我们手里，何不直接对所有可能动作求解析期望？
+
+$$
+Q(S_t, A_t) \;\leftarrow\; Q(S_t, A_t) + \alpha\left[\, R_{t+1} + \gamma \sum_{a' \in \mathcal{A}} \pi(a' \mid S_{t+1})\, Q(S_{t+1}, a') - Q(S_t, A_t) \,\right]
+$$
+
+- 当 $\pi$ 取当前的 $\varepsilon$-greedy 策略时，Expected SARSA 是在策略且**方差严格低于 SARSA**（允许用更大的学习率 $\alpha$ 而不震荡）；
+- 当 $\pi$ 取确定性贪心策略 $\pi(a'\mid s') = \mathbb{I}(a' = \arg\max Q)$ 时，求和瞬间退化为 $\max_{a'} Q(S_{t+1}, a')$ —— **Q-learning 其实就是 Expected SARSA 的一个特例！**
+
+---
+
+## 4. 可运行 Python 完整代码（一套循环支持三种算法）
+
+```python
+import numpy as np
+
+def train_td_control(env, algo="q_learning", episodes=500, alpha=0.5, gamma=1.0, eps=0.1, seed=42):
+    rng = np.random.default_rng(seed)
+    nS, nA = env.observation_space.n, env.action_space.n
+    Q = np.zeros((nS, nA))
+
+    def eps_greedy(s):
+        return int(rng.integers(nA)) if rng.random() < eps else int(np.argmax(Q[s]))
+
+    returns = []
+    for _ in range(episodes):
+        s, _ = env.reset()
+        a = eps_greedy(s)
+        ep_ret, done = 0.0, False
+
+        while not done:
+            ns, r, term, trunc, _ = env.step(a)
+            done = term or trunc
+            na = eps_greedy(ns)
+
+            if done:
+                bootstrap = 0.0
+            elif algo == "q_learning":
+                bootstrap = float(np.max(Q[ns]))
+            elif algo == "sarsa":
+                bootstrap = float(Q[ns, na])
+            else:  # expected_sarsa
+                best = int(np.argmax(Q[ns]))
+                probs = np.full(nA, eps / nA)
+                probs[best] += 1.0 - eps
+                bootstrap = float(np.dot(probs, Q[ns]))
+
+            Q[s, a] += alpha * (r + gamma * bootstrap - Q[s, a])
+            ep_ret += r
+            s, a = ns, na
+        returns.append(ep_ret)
+    return Q, returns
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在悬崖行走实验中，如果把 ε-greedy 的探索率 ε 随训练进度缓慢衰减到 0（满足 GLIE 条件），最终 SARSA 和 Q-learning 学到的策略会怎样？',
+      options: ['SARSA 依然永远绕最远的路', '两者最终都会收敛到同一条贴着悬崖的最短最优路径 π*', 'Q-learning 会发散', '两者都会原地打转'],
+      answerIndex: 1,
+      explanation: '当 ε → 0 时，“探索手滑摔下悬崖”的风险趋近于零，SARSA 也会发现贴着悬崖走既安全又最短，从而与 Q-learning 殊途同归于最优策略 π*！',
+    },
+    {
+      question: '如果我手里有一批早已录制好的离线随机游走日志 (S_t, A_t, R_{t+1}, S_{t+1})，且无法继续与环境交互，应该用 SARSA 还是 Q-learning 来估计最优动作价值 q*？',
+      options: ['必须用 SARSA', '应该用离策略的 Q-learning（注：纯离线高维场景还需防范 OOD 动作外推）', '两者完全不能用于离线样本', '只能用动态规划'],
+      answerIndex: 1,
+      explanation: 'SARSA 是 On-Policy 算法，评估的是产生这批日志的随机策略本身；而 Q-learning 是 Off-Policy 算法，只要日志覆盖足够充分，就能直接从中估出最优 q*。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：6.3 最大化偏差与 Double Q-learning" href="/docs/06-temporal-difference/03-double-q" />
+  <Card title="下一节：6.3 最大化偏差与 Double Q-learning" href="/docs/06-temporal-difference/03-double-q" description="在经典的 A→B 噪声陷阱里，看懂 max 算子如何系统性欺骗 Q-learning，以及 Double Q 的优雅解耦！" />
 </Cards>

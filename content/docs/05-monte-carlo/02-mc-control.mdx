@@ -1,29 +1,121 @@
 ---
 title: '5.2 蒙特卡洛控制、GLIE 与最优 21 点策略涌现'
-description: '为什么无模型控制必须估计 Q(s,a)？一键训练 50,000 局 21 点，目睹经典最优策略边界浮现。'
+description: '为什么无模型控制必须估计 Q(s,a)？一键训练 60,000 局 21 点，目睹经典最优策略边界浮现。'
 icon: 'Gamepad2'
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { BlackjackPolicyTrainer } from '@/components/docs/05-monte-carlo/BlackjackPolicyTrainer';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={3}
+  time="20 分钟"
+  prereqs={['4.3 广义策略迭代 (GPI)', '5.1 蒙特卡洛预测']}
+  goals={[
+    '理解为什么无模型控制必须评估动作价值 Q(s,a) 而不能只评估 V(s)',
+    '掌握 On-Policy ε-soft 蒙特卡洛控制算法与 GLIE 收敛条件',
+    '在浏览器里实时训练 60,000 局 21 点并解读学出的最优决策热力图',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. 无模型控制的第一个转折：必须从 $V(s)$ 转向 $Q(s, a)$
 
-## 核心知识点
+在 4.2 节的动态规划里，只要算出状态价值 $V(s)$，我们就可以通过前瞻一步算出最优策略：
+$$
+\pi'(s) = \arg\max_a \sum_{s', r} p(s', r \mid s, a)\big[r + \gamma V(s')\big]
+$$
+但现在我们**没有环境模型 $p(s', r \mid s, a)$**！拿着一张 $V(s)$ 表，你根本算不出选哪个动作会去哪个 $s'$。
 
-- 从 V 到 Q：无模型下贪心改进为何需要动作价值
-- 探索性起点 (Exploring Starts) 的局限
-- On-Policy ε-soft MC 控制与 GLIE 收敛条件
-- 完整 Python 21 点 MC 控制代码
+解决办法在第 3 章早已埋好伏笔：**直接用蒙特卡洛估计动作价值函数 $Q(s, a)$**！一旦有了 $Q(s, a)$，策略改进就彻底脱离环境模型：
 
-## 规划交互
+$$
+\pi'(s) = \arg\max_{a \in \mathcal{A}} Q(s, a)
+$$
 
-- **`<BlackjackPolicyTrainer />`**：21 点 MC 策略训练场：在浏览器中真实运行 500 → 50,000 局 MC Control，实时观看无可用 A / 有可用 A 两张 10×10 策略热力图长出最优停牌边界
+---
+
+## 2. 探索困境再现：探索性起点 vs On-Policy $\varepsilon$-Soft 控制
+
+如果每次改进都把策略变成**确定性贪心** $\pi(s) = \arg\max_a Q(s, a)$，很快所有回合都只走同一个动作，其他动作再也不会被采样到——GPI 的评估环节因为看不到未尝试动作的真实回报而彻底停摆！
+
+教科书给出两条出路：
+
+1. **探索性起点（Exploring Starts, ES）**：强行要求每一局的初始状态-动作对 $(S_0, A_0)$ 以非零概率覆盖所有可能组合。在 21 点仿真器里容易做到，但在真实机器人或游戏里你不可能把汽车凭空瞬移到悬崖半空中开局；
+2. **在策略 $\varepsilon$-Soft 控制（On-Policy $\varepsilon$-Soft MC Control）**：放弃寻找确定性策略，强制策略对任意状态下的所有动作都保留至少 $\frac{\varepsilon}{|\mathcal{A}|}$ 的探索概率：
+   $$
+   \pi(a \mid s) = \begin{cases}
+   1 - \varepsilon + \dfrac{\varepsilon}{|\mathcal{A}|}, & \text{若 } a = \arg\max_{a'} Q(s, a') \\[8pt]
+   \dfrac{\varepsilon}{|\mathcal{A}|}, & \text{其他动作}
+   \end{cases}
+   $$
+
+### GLIE 条件：如何既充分探索又收敛到真正最优 $\pi_*$？
+
+如果在训练过程中让 $\varepsilon_k$ 随回合数 $k$ 缓慢衰减（例如 $\varepsilon_k = \frac{1}{k}$），使其满足 **GLIE（Greedy in the Limit with Infinite Exploration）** 两条黄金性质：
+1. 所有状态-动作对被访问无穷多次：$\lim_{k \to \infty} N_k(s, a) = \infty$；
+2. 策略在极限上收敛为确定性贪心策略：$\lim_{k \to \infty} \pi_k(a \mid s) = \mathbb{I}\big(a = \arg\max_{a'} Q_k(s, a')\big)$。
+
+那么 On-Policy 蒙特卡洛控制保证以概率 $1$ 收敛至最优动作价值 $q_*$ 与最优策略 $\pi_*$！
+
+---
+
+## 3. 浏览器实战训练场：60,000 局 21 点长出经典最优策略！
+
+下面这段实时训练器直接运行在你的浏览器里。**先点 `500 局` 看一片混沌的噪声边界，再依次点 `3,000 局` → `20,000 局` → `60,000 局`**，亲眼见证强化学习如何从零开始、不靠任何人类牌谱，独自悟出世界级 21 点职业策略（建议切换对比「无可用 A」与「有可用 A」两张表！）：
+
+<BlackjackPolicyTrainer />
+
+---
+
+## 4. 完整可运行 Python 21 点 GLIE MC Control 代码
+
+```python
+import numpy as np
+from collections import defaultdict
+
+def mc_control_glie(env, episodes=50000, gamma=1.0):
+    n_actions = env.action_space.n
+    Q = defaultdict(lambda: np.zeros(n_actions))
+    N = defaultdict(lambda: np.zeros(n_actions))
+
+    for k in range(1, episodes + 1):
+        eps = max(0.02, 1.0 / (1.0 + k / 500.0))      # GLIE 衰减探索率
+        state, _ = env.reset()
+        episode, done = [], False
+
+        while not done:
+            if np.random.rand() < eps:
+                action = np.random.randint(n_actions)
+            else:
+                action = int(np.argmax(Q[state]))
+            next_state, reward, term, trunc, _ = env.step(action)
+            episode.append((state, action, reward))
+            state, done = next_state, term or trunc
+
+        G = 0.0
+        for s, a, r in reversed(episode):
+            G = gamma * G + r
+            N[s][a] += 1
+            Q[s][a] += (G - Q[s][a]) / N[s][a]        # Every-Visit 增量更新
+
+    policy = {s: int(np.argmax(q)) for s, q in Q.items()}
+    return Q, policy
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 21 点学出的最优策略中，为什么当玩家手里有“可用 A (Usable Ace)”且点数为 17 点时，AI 往往选择继续要牌 (HIT)，而无可用 A 的硬 17 点则坚决停牌 (STICK)？',
+      options: ['因为有可用 A 时再抽一张大牌绝不会直接爆牌（A 可以自动退回 1 点保命），探索上界收益远高于风险', '因为 21 点规则禁止硬 17 点要牌', '因为模型训练局数还不够', '因为 A 的点数永远固定为 11'],
+      answerIndex: 0,
+      explanation: '这就是软牌（Soft Hand）的魅力：手握 A+6（软 17）时要一张牌无论摸到几都不可能爆牌，最坏只是变成硬牌再打；而硬 17 要牌爆牌概率极高！MC 纯靠试错就自动学会了这条精妙规律。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：5.3 离策略学习与重要性采样方差剖析" href="/docs/05-monte-carlo/03-importance-sampling" />
+  <Card title="下一节：5.3 离策略学习与重要性采样方差剖析" href="/docs/05-monte-carlo/03-importance-sampling" description="如何用别人的历史轨迹评估自己的目标策略？亲眼见证普通 IS 的方差爆炸与加权 IS 的拯救！" />
 </Cards>

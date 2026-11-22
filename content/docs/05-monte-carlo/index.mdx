@@ -6,28 +6,123 @@ icon: 'Dice5'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { BlackjackGameLab } from '@/components/docs/05-monte-carlo/BlackjackGameLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={3}
+  time="20 分钟"
+  prereqs={['第 4 章动态规划的局限', '大数定律']}
+  goals={[
+    '理解为什么 21 点很难用动态规划列出转移概率矩阵，却极易用蒙特卡洛采样求解',
+    '掌握 First-Visit（首次访问）与 Every-Visit（每次访问）MC 预测的异同',
+    '学会从回合终点 O(T) 反向累加计算折扣回报 G_t',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. 撕掉上帝地图：如果不知道 $p(s', r \mid s, a)$ 怎么办？
 
-## 核心知识点
+思考一个经典问题——**21 点（Blackjack）**：你和庄家各发两张牌，庄家有一张明牌和一张暗牌。你要决定继续**要牌（HIT）**还是**停牌（STICK）**，目标是手牌点数尽可能接近 21 且不爆牌。
 
-- 无模型学习的第一步：用经验样本平均代替全期望
-- 首次访问 (First-Visit) vs 每次访问 (Every-Visit) MC
-- 从回合终点反向累加计算回报 G_t 的高效算法
-- 21 点状态建模（玩家点数 × 庄家明牌 × 可用 A）
+为什么不用第 4 章的动态规划直接解 21 点？算算就头大了：你要手工推导在庄家明牌为 6、你手握软 18 的条件下，停牌后庄家连续补 1 张、2 张、3 张、4 张牌最终落在 17/18/19/20/21 或爆牌的精确条件概率矩阵——极其繁琐且极易算错！
 
-## 规划交互
+但让计算机**直接按规则打 10 万局 21 点**却只需要 50 行代码、不到 0.1 秒！这就是**蒙特卡洛方法（Monte Carlo, MC）**的朴素哲学：
 
-- **`<BlackjackGameLab />`**：完整小游戏《21 点赌场实战牌桌》：完整扑克牌 UI、要牌(Hit)/停牌(Stick)、软 A 规则、战绩统计与轨迹回报回溯展示
+> **既然 $v_\pi(s) = \mathbb{E}_\pi[G_t \mid S_t = s]$ 是回报的数学期望，只要遵循策略 $\pi$ 反复玩很多完整回合，把每次经过状态 $s$ 后实际拿到的完整回报 $G_t$ 取算术平均，由大数定律它必定收敛到真实价值 $v_\pi(s)$！**
 
-## 规划动效
+---
 
-- 🎬 **`mc-tabletop-rewind`**：绿绒牌桌时间倒带风：正向发牌走完一局后启动倒带特效，终局胜负筹码沿轨迹逐格倒流累加并写入每个历史状态
+## 2. 先打两局真实 21 点，感受状态三元组与终局回填
+
+请先在下方绿绒牌桌上和庄家实战几局，特别注意观察每次要牌/停牌时顶部记录的 **RL 状态三元组 `(玩家点数, 庄家明牌, 是否有可用 A)`**（“可用 A”指手里的 A 当作 11 点使用而不爆牌）：
+
+<BlackjackGameLab />
+
+---
+
+## 3. First-Visit MC vs Every-Visit MC 预测算法
+
+如果一条回合轨迹里，同一个状态 $s$ 被智能体多次经过，应该算一次还是算多次？
+
+1. **首次访问蒙特卡洛（First-Visit MC）**：每回合中，**只对状态 $s$ 第一次出现后的回报 $G_t$** 计入均值。各回合的回报相互独立同分布，因此是 $v_\pi(s)$ 的**严格无偏估计**，标准差按 $1/\sqrt{N(s)}$ 下降；
+2. **每次访问蒙特卡洛（Every-Visit MC）**：每回合中，**状态 $s$ 每出现一次**都把对应的 $G_t$ 计入均值。在工程上省去了维护“本回合已访问集合”的开销，虽然单次有微小相关性，但同样以概率 $1$ 渐近收敛至 $v_\pi(s)$。
+
+### 高效的 $O(T)$ 反向递推算法
+
+为了避免对每个时刻都从头求和（$O(T^2)$），标准做法是**等整局结束后从 $t = T - 1$ 倒序回溯至 $t = 0$**：
+
+$$
+G \;\leftarrow\; \gamma \, G + R_{t+1}, \qquad V(S_t) \;\leftarrow\; V(S_t) + \frac{1}{N(S_t)}\big(G - V(S_t)\big)
+$$
+
+### 🎬 Remotion 动作讲解：21 点牌桌正向发牌 × 终局时间倒带
+
+<MotionPlayer id="mc-tabletop-rewind" />
+
+---
+
+## 4. 蒙特卡洛相比动态规划的三大惊艳特性
+
+1. **完全无模型（Model-Free）**：只要能仿真或与真实环境交互，无需任何转移概率公式；
+2. **不自举（No Bootstrapping）**：每个状态的价值估计只依赖自己身后真实走完的回报 $G_t$，**不依赖其他状态的估计值**！因此它天然零偏差，且在部分非马尔可夫环境中抗干扰能力更强；
+3. **局部评估复杂度与总状态数无关**：如果你只关心某一个特定状态 $s_0$ 的价值（例如棋局当前的唯一盘面），只需从 $s_0$ 出发采样几千条轨迹即可，完全不用像 DP 那样扫描全宇宙所有状态！
+
+---
+
+## 5. 可运行 Python First-Visit MC 预测代码
+
+```python
+from collections import defaultdict
+
+def first_visit_mc_prediction(env, policy, episodes=10000, gamma=1.0):
+    V = defaultdict(float)
+    N = defaultdict(int)
+
+    for _ in range(episodes):
+        # 1. 正向采样一条完整回合
+        state, _ = env.reset()
+        episode, done = [], False
+        while not done:
+            action = policy(state)
+            next_state, reward, term, trunc, _ = env.step(action)
+            episode.append((state, action, reward))
+            state, done = next_state, term or trunc
+
+        # 2. 反向时间倒带计算 G_t，仅更新首次出现的状态
+        G = 0.0
+        visited = set()
+        first_idx = {}
+        for idx, (s, _, _) in enumerate(episode):
+            if s not in first_idx:
+                first_idx[s] = idx
+
+        for t in range(len(episode) - 1, -1, -1):
+            s, _, r = episode[t]
+            G = gamma * G + r
+            if t == first_idx[s]:            # 仅在首次访问位置更新
+                N[s] += 1
+                V[s] += (G - V[s]) / N[s]
+    return V
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 21 点游戏中，蒙特卡洛方法要求一个必要前提，使得它可以被直接应用。这个前提是什么？',
+      options: ['必须知道发牌概率矩阵', '任务必须是分幕式（Episodic）的，即每个回合都能在有限步内终止以便算出完整回报 G_t', '折扣因子 γ 必须严格小于 0.5', '所有状态必须只能访问一次'],
+      answerIndex: 1,
+      explanation: '经典蒙特卡洛必须等到回合终止后才能反向累加出真实回报 G_t，因此无法直接用于永不终止的持续式任务（这正是下一章 TD 自举要解决的核心痛点！）。',
+    },
+    {
+      question: '如果在一条轨迹 (s_A → s_B → s_A → 终点+10) 中（γ=1，其余步奖励 0），状态 s_A 出现了两次。First-Visit MC 在这一回合中会将 s_A 的计数 N(s_A) 增加几次？',
+      options: ['0 次', '1 次', '2 次', '3 次'],
+      answerIndex: 1,
+      explanation: 'First-Visit MC 在同一回合里仅记录每个状态首次出现时的回报样本，因此本回合 N(s_A) 仅增加 1 次。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：5.2 蒙特卡洛控制、GLIE 与最优 21 点策略涌现" href="/docs/05-monte-carlo/02-mc-control" />
+  <Card title="下一节：5.2 蒙特卡洛控制、GLIE 与最优 21 点策略涌现" href="/docs/05-monte-carlo/02-mc-control" description="在浏览器里一键训练 60,000 局 21 点，亲眼看着职业玩家的 10×10 最优策略边界从混沌中浮现！" />
 </Cards>

@@ -6,24 +6,86 @@ icon: 'Copy'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { MaxBiasTrapLab } from '@/components/docs/06-temporal-difference/MaxBiasTrapLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="16 分钟"
+  prereqs={['6.2 Q-learning', '凸函数与 Jensen 不等式']}
+  goals={[
+    '用 Jensen 不等式严格说明为什么 E[max Q] ≥ max E[Q] 会诱发系统性正向高估',
+    '在 Sutton & Barto 经典 A→B 陷阱中亲眼观察普通 Q-learning 为何顽固踩坑',
+    '掌握 Double Q-learning 解耦「动作选择」与「价值评估」的核心机制',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 藏在 $\max$ 算子里的统计学暗礁：最大化偏差（Maximization Bias）
+
+Q-learning 用 $\max_{a'} Q(S_{t+1}, a')$ 去估计真实的 $\max_{a'} q_*(S_{t+1}, a')$，看起来天衣无缝——其实暗藏着一个会导致严重高估的陷阱！
+
+假设在状态 $B$ 里有 $k = 10$ 个候选动作，每个动作的**真实期望价值全都是负数 $-0.1$**，但因为采样噪声，我们对每个动作的估计值带有随机误差：$Q(B, a) \sim \mathcal{N}(-0.1, \sigma^2)$。
+
+虽然每个单个估计 $Q(B, a)$ 都是无偏的（均值都是 $-0.1$），但在 10 个随机变量里**挑出最大那一个**，几乎必然挑中一个“刚好向上波动了一大截的正噪声幸运儿”！
+
+从数学上，因为 $f(x_1, \dots, x_k) = \max_i x_i$ 是凸函数，由 **Jensen 不等式**立得：
+
+$$
+\mathbb{E}\Big[\,\max_{a} Q(B, a)\,\Big] \;\ge\; \max_{a} \mathbb{E}\big[Q(B, a)\big] \;=\; -0.1
+$$
+
+当 $k = 10, \sigma = 1.0$ 时，10 个标准正态噪声的最大值期望高达 **$\approx +1.54$**！于是 $\mathbb{E}[\max_a Q(B, a)] \approx -0.1 + 1.54 = \mathbf{+1.44}$——明明是个全是负分的烂坑，Q-learning 却以为里面藏着 `+1.44` 的大金矿！
+
+---
+
+## 2. 经典反例实验室：A → B 噪声陷阱
+
+在 Sutton & Barto 例 6.7 中：
+- 起点 **状态 A** 有两个动作：**向右**直接结束得 `0` 分（唯一最优解）；**向左**得 `0` 分并进入 **状态 B**；
+- **状态 B** 有 $k$ 个动作，走哪条都直接结束，奖励服从 $\mathcal{N}(-0.1, \sigma^2)$（期望全为负 `-0.1`）。
+
+调节下方的分支数 `k` 和噪声 `σ`，亲眼见证 **普通 Q-learning（红线）** 在前几十回合如何被高估偏差骗得高达 60%–85% 都在疯狂向左跳坑，而 **Double Q-learning（绿线）** 瞬间识破骗局：
+
+<MaxBiasTrapLab />
+
+---
+
+## 3. Double Q-learning：解耦「谁来选」和「谁来评」
+
+最大化偏差的病根在于：**我们用同一套带噪声的估计 $Q$，既负责“选出最大值动作”，又负责“给这个动作打分”**（相当于既当运动员又当裁判）。
+
+Hado van Hasselt (2010) 给出的解法简洁到令人拍案叫绝：**维护两张独立学习的动作价值表 $Q_1$ 和 $Q_2$！** 每一步以 $50\%$ 概率抛硬币决定更新哪一张：
+
+- **若更新 $Q_1$**：用 $Q_1$ 挑选最优动作 $a^* = \arg\max_{a'} Q_1(S_{t+1}, a')$，但用**独立的 $Q_2$ 去评估它的价值**：
+  $$
+  Q_1(S_t, A_t) \;\leftarrow\; Q_1(S_t, A_t) + \alpha\Big[\, R_{t+1} + \gamma \, Q_2\big(S_{t+1}, \arg\max_{a'} Q_1(S_{t+1}, a')\big) - Q_1(S_t, A_t) \,\Big]
+  $$
+- **若更新 $Q_2$**：对称互换 $Q_1$ 与 $Q_2$ 的角色：
+  $$
+  Q_2(S_t, A_t) \;\leftarrow\; Q_2(S_t, A_t) + \alpha\Big[\, R_{t+1} + \gamma \, Q_1\big(S_{t+1}, \arg\max_{a'} Q_2(S_{t+1}, a')\big) - Q_2(S_t, A_t) \,\Big]
+  $$
+- **行为策略探索时**：使用两张表之和 $Q_1(s, a) + Q_2(s, a)$ 来做 $\varepsilon$-greedy 选动作。
+
+因为 $Q_2$ 的估计噪声与 $Q_1$ 选出 $a^*$ 时的噪声相互独立，条件期望精确无偏：$\mathbb{E}[Q_2(S', a^*)] = q_*(S', a^*)$！
+
+<Callout type="tip" title="一项思想影响十年深度强化学习">
+  Double Q-learning 的解耦思想后来被完整移植到了深度强化学习三大里程碑中：
+  - **Double DQN（第 7 章）**：用在线网 $Q_\theta$ 选动作，用目标网 $Q_{\theta^-}$ 估值；
+  - **TD3 / SAC（第 9 章）**：训练两个独立的 Critic 网络 $Q_{\phi_1}, Q_{\phi_2}$，直接取 $\min(Q_{\phi_1}, Q_{\phi_2})$ 根治连续控制中的 Q 值爆炸！
 </Callout>
 
-## 核心知识点
+---
 
-- Jensen 不等式证明 E[max Q] ≥ max E[Q]
-- Sutton & Barto 经典 A→B 多分支噪声陷阱反例
-- Double Q-learning 解耦「动作选择」与「价值评估」
-- 通往 Double DQN 与 TD3 双 Critic 的思想脉络
-
-## 规划交互
-
-- **`<MaxBiasTrapLab />`**：经典 A→B 陷阱环境模拟器：动态调节 B 状态分支数 k 与奖励噪声 σ，实时绘制 Q-learning 顽固误选左转 vs Double Q 迅速逃离陷阱的曲线
+<QuizBox
+  questions={[
+    {
+      question: '在 Double Q-learning 中，为什么每一步要随机（各 50% 概率）决定更新 Q₁ 还是 Q₂，而不是每一步同时用同一条样本更新两张表？',
+      options: ['为了节省一半 CPU 运算', '如果每条样本同时更新 Q₁ 和 Q₂，两张表的估计噪声会高度相关，失去独立性导致最大化偏差卷土重来', '因为 Python 不支持同时修改两个数组', '为了让探索率翻倍'],
+      answerIndex: 1,
+      explanation: '两张表之所以能消除最大化偏差，核心依赖的是“选动作的估计器与估值的估计器在采样噪声上相互独立”；把样本随机分流给 Q₁ 或 Q₂ 正是保持独立性的关键。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：6.4 n 步自举、TD(λ) 与资格迹" href="/docs/06-temporal-difference/04-nstep-and-traces" />
+  <Card title="下一节：6.4 n 步自举、TD(λ) 与资格迹" href="/docs/06-temporal-difference/04-nstep-and-traces" description="把单步 TD(0) 与完整回合 MC 统一成一条连续光谱，在荧光走廊里体验全路径瞬时信用回传！" />
 </Cards>

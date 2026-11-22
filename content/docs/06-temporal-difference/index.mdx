@@ -6,28 +6,106 @@ icon: 'Timer'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { RandomWalkArena } from '@/components/docs/06-temporal-difference/RandomWalkArena';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={3}
+  time="20 分钟"
+  prereqs={['第 4 章动态规划', '第 5 章蒙特卡洛预测']}
+  goals={[
+    '彻底理解时序差分 TD(0) 如何兼收“无模型采样”与“自举”两大优点',
+    '掌握 TD 目标、TD 误差 δ_t 及为什么 TD 常常比 MC 收敛得更快、更稳',
+    '理解批量更新下的「确定性等价估计 (Certainty-Equivalence)」直觉',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 回家路上的直觉：为什么非要到家才知道堵车了？
+
+想象你每天开车下班回家，正常预计需要 **30 分钟**。某天你刚开出公司大楼 5 分钟，就看到前方高架桥红成一片，导航重新预测“从高架桥口到家还要 45 分钟”——于是你预计今天总耗时变成 $5 + 45 = 50$ 分钟。
+
+- **蒙特卡洛 (MC) 司机**：死活不改预期，非要等最后彻底停进车库、看表发现花了 52 分钟，才回头反思：“哦，出门那一刻的估计值低估了 22 分钟！”
+- **时序差分 (TD) 司机**：刚开到高架桥口那一瞬间，立刻用**刚耗的 5 分钟 + 新状态的预计 45 分钟 = 50 分钟**，马上修正出门那一刻的旧估计 30 分钟！
+
+这就是 Richard Sutton 所说“整个强化学习最核心、最具原创性的思想”——**时序差分学习（Temporal-Difference Learning, TD）**。
+
+---
+
+## 2. 从 MC 到 TD(0)：只向前看一步的自举
+
+对比常数步长蒙特卡洛与单步 **TD(0)** 的更新公式：
+
+$$
+\text{MC:}\quad V(S_t) \;\leftarrow\; V(S_t) + \alpha\Big[\,\underbrace{G_t}_{\text{真实完整回报}} - V(S_t)\,\Big]
+$$
+
+$$
+\text{TD(0):}\quad V(S_t) \;\leftarrow\; V(S_t) + \alpha\Big[\,\underbrace{R_{t+1} + \gamma V(S_{t+1})}_{\text{TD 目标 (TD Target)}} - V(S_t)\,\Big]
+$$
+
+我们把括号里的误差称为 **TD 误差（TD Error）**，记作 $\delta_t$：
+
+$$
+\delta_t \;\doteq\; R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+$$
+
+### 🎬 Remotion 动作讲解：TD 机械弹簧模型（用估计牵引估计）
+
+<MotionPlayer id="td-spring-physics" />
+
+---
+
+## 3. MC、TD、DP 三剑客的全景对照
+
+把前两章和本章放在一个 $2 \times 2$ 的维度坐标系里，整个强化学习的核心谱系一目了然：
+
+| 方法 | 是否需要模型 $p$？ | 是否自举 (Bootstrapping)？ | 偏差 (Bias) | 方差 (Variance) | 能否处理持续式任务？ |
+| --- | --- | --- | --- | --- | --- |
+| **动态规划 (DP)** | 需要（全宽期望） | ✅ 自举 | 初始有偏，收敛后 0 | **0 方差** | ✅ 可以 |
+| **蒙特卡洛 (MC)** | ❌ 无模型（采样） | ❌ 不自举（等终局） | **严格 0 偏差** | 极高（累加整条轨迹噪声） | ❌ 仅限分幕式 |
+| **时序差分 TD(0)** | ❌ 无模型（采样） | ✅ 自举（迈一步就学） | 初期有轻微自举偏差，收敛后 0 | **极低**（仅含 1 步随机性） | ✅ 完美支持在线每步更新 |
+
+### 🚶 交互实验：5 状态随机游走（亲眼看 TD(0) 完胜 MC！）
+
+拖动下方 `TD(0) 步长 α`、`MC 步长 α` 与观察回合数，复现 Sutton & Barto 图 6.2：因为 MC 把一路上左右摇摆的噪声全加进了回报 $G_t$，在相同样本量下，**蓝色的 TD(0) RMS 误差曲线几乎全面压制橙色的 MC 曲线**！
+
+<RandomWalkArena />
+
+---
+
+## 4. 深入一层：为什么 TD 在小样本上也更“懂马尔可夫结构”？
+
+假设你只观测到 8 条极少的历史轨迹：
+- 轨迹 1：`A → 0 → B → 0`
+- 轨迹 2–7（共 6 条）：`B → 1`
+- 轨迹 8：`B → 0`
+
+请问状态 `A` 的价值 $V(A)$ 应该是多少？
+- **蒙特卡洛 (MC)** 只盯着经过 `A` 的唯一那条轨迹（终局得 0），死板地给出 **$V_{\text{MC}}(A) = 0$**（最小化训练集上的均方回报误差）；
+- **时序差分 TD(0)** 先从 8 条经过 `B` 的数据里准确估出 $V(B) = 6/8 = 0.75$，再利用 `A` 每次都转移到 `B` 的马尔可夫结构，推导出 **$V_{\text{TD}}(A) = 0.75$**（即极大似然 MDP 模型的**确定性等价估计 Certainty-Equivalence Estimate**）！
+
+<Callout type="tip" title="神经科学的惊人共鸣：多巴胺奖励预测误差假说">
+  Schultz 等神经科学家在猕猴实验中发现：大脑中脑多巴胺神经元的脉冲发放模式，并不是在“吃到果汁（奖励 $R$）”时恒定激发，而是严格追踪 **TD 误差 $\delta_t$**：收到**意料之外的奖励**时剧烈放电（$\delta_t > 0$）；一旦学会铃声预示果汁，放电瞬间**前移到铃声响起的时刻**；如果铃响了却没给果汁，多巴胺瞬间骤降至基线以下（$\delta_t < 0$）！
 </Callout>
 
-## 核心知识点
+---
 
-- TD 目标 R_\{t+1\} + γ V(S_\{t+1\}) 与 TD 误差 δ_t
-- MC、TD、DP 备份维度全景对比（采样 vs 全期望、自举 vs 完整回报）
-- 批量更新下的确定性等价性 (Certainty-Equivalence)
-- 5 状态随机游走实验与 RMS 误差分析
-
-## 规划交互
-
-- **`<RandomWalkArena />`**：5 状态随机游走动态动画 + 真实 SVG RMS 误差折线图：小人实时游走更新估计柱，下方绘出多组 α 下 TD(0) 完胜 MC 的 RMS 收敛曲线
-
-## 规划动效
-
-- 🎬 **`td-spring-physics`**：物理弹簧力学风：V(S_t) 滑块与 TD 目标之间连着一根带物理弹性形变的红弹簧，δ_t 产生的拉力按步长 α 精准牵引估计更新
+<QuizBox
+  questions={[
+    {
+      question: '在 5 状态随机游走中，为什么单步 TD(0) 的初始更新带有“偏差 (Bias)”？',
+      options: ['因为步长 α 选得不对', '因为 TD 目标 R_{t+1} + γ V(S_{t+1}) 中用了尚不准确的旧估计 V(S_{t+1}) 来代替真实期望 v_π(S_{t+1})', '因为没有使用折扣因子', '因为随机游走不满足马尔可夫性质'],
+      answerIndex: 1,
+      explanation: '自举（用估计更新估计）引入的正是初期偏差，但它同时将方差从整条轨迹的累积噪声骤降到单步噪声，在绝大多数马尔可夫任务中换来了压倒性的收敛速度优势。',
+    },
+    {
+      question: '如果某一步的 TD 误差 δ_t = R_{t+1} + γ V(S_{t+1}) - V(S_t) 恰好小于 0，更新后 V(S_t) 会怎么变化？',
+      options: ['上升', '下降（因为实际结果不如原先预期，需下调估计）', '保持不变', '清零'],
+      answerIndex: 1,
+      explanation: 'V(S_t) ← V(S_t) + α·δ_t。当 δ_t < 0 时表示“现实不如预期”，估计值随之向下修正。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：6.2 SARSA 与 Q-learning：悬崖边的安全与激进" href="/docs/06-temporal-difference/02-sarsa-and-qlearning" />
+  <Card title="下一节：6.2 SARSA 与 Q-learning：悬崖边的安全与激进" href="/docs/06-temporal-difference/02-sarsa-and-qlearning" description="同屏动画竞速对比在策略 SARSA 与离策略 Q-learning，看透离线最优与在线避险的经典悖论！" />
 </Cards>

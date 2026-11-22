@@ -6,28 +6,93 @@ icon: 'Sparkles'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { EligibilityTraceMaze } from '@/components/docs/06-temporal-difference/EligibilityTraceMaze';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="22 分钟"
+  prereqs={['6.1 TD(0) 预测', '5.1 蒙特卡洛预测']}
+  goals={[
+    '理解 n 步自举回报如何把 TD(0) (n=1) 与 MC (n=∞) 统一为一条连续光谱',
+    '掌握前向视角 λ-回报 G_t^λ 与后向视角资格迹 z_t(s) 的对称美感与离线等价性',
+    '在荧光资格迹走廊中直观感受 λ 控制信用分配传播速度的物理过程',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 为什么非得在「看 1 步」和「看到终点」之间二选一？
+
+面对一条长轨迹，TD(0) 只真实往前看 **1 步**就自举，偏差稍大但传播慢（第一次吃到奶酪时，只有奶酪前 1 格收到消息！）；蒙特卡洛一直看到**回合终点**才更新，方差又太高。
+
+显然，我们可以向前看任意 **$n$ 步真实奖励**，再从第 $t+n$ 步开始自举——这就是 **$n$ 步回报（$n$-Step Return）**：
+
+$$
+G_{t:t+n} \;\doteq\; R_{t+1} + \gamma R_{t+2} + \cdots + \gamma^{n-1} R_{t+n} + \gamma^n V_{t+n-1}(S_{t+n})
+$$
+
+- 当 $n = 1$：$G_{t:t+1} = R_{t+1} + \gamma V(S_{t+1})$，就是 **TD(0)**；
+- 当 $n \to \infty$（超过终局 $T$）：$G_{t:t+n} = G_t$，就是 **蒙特卡洛 (MC)**；
+- 实验规律几乎呈一条经典的 **U 形曲线**：中等步长（如 $n = 3 \sim 8$）往往比两端的 TD(0) 和 MC 都收敛得快得多！（后来的 **Rainbow DQN** 也把多步回报 Multi-Step 作为六大核心组件之一！）
+
+---
+
+## 2. 前向视角：$\lambda$-回报（把所有 $n$ 步回报优雅地全融合！）
+
+既然不知该选 $n=2$ 还是 $n=5$，不如把所有 $n = 1, 2, 3, \dots$ 步回报按**几何权重 $(1 - \lambda)\lambda^{n-1}$** 全部加权平均起来，定义 **$\lambda$-回报（$\lambda$-Return）**（$\lambda \in [0, 1]$）：
+
+$$
+G_t^\lambda \;\doteq\; (1 - \lambda) \sum_{n=1}^{\infty} \lambda^{n-1} G_{t:t+n}
+$$
+
+检查归一化：$(1-\lambda)\sum_{n=1}^\infty \lambda^{n-1} = (1-\lambda)\cdot\frac{1}{1-\lambda} = 1$！
+- **$\lambda = 0$**：只有 $n=1$ 项权重为 $1$，退化为 **TD(0)**；
+- **$\lambda = 1$**：所有有限 $n$ 权重趋于 $0$，全部质量落在终局回报 $G_t$ 上，退化为 **蒙特卡洛**！
+
+> **前向视角的痛点**：要想算出 $G_t^\lambda$，你还是得等到整局结束才知道未来所有的 $G_{t:t+n}$——无法做到在线每步更新！
+
+---
+
+## 3. 后向视角：资格迹（Eligibility Traces）让“未来视角”在线实时化！
+
+**TD($\lambda$)** 最惊才绝艳的地方在于提供了一个完全等价的**后向机械实现**：给每个状态维护一个会随时间衰减的“短期记忆热度”——**资格迹（Eligibility Trace）** $z_t(s)$：
+
+1. **走过就点亮，没走就衰减**（累积迹 Accumulating Trace）：
+   $$
+   z_t(s) = \gamma \lambda \, z_{t-1}(s) + \mathbb{I}(S_t = s)
+   $$
+   （若不想同一状态反复叠加超过 1，可改为**替换迹 Replacing Trace**：走过时直接置 $z_t(S_t) = 1$。）
+2. **每走一步，把当前单步 TD 误差 $\delta_t$ 广播给所有带热度的历史状态！**
+   $$
+   \delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t), \qquad V(s) \;\leftarrow\; V(s) + \alpha \, \delta_t \, z_t(s) \quad (\forall s \in \mathcal{S})
+   $$
+
+**神奇的数学等价定理**：在离线（整回合结束统一累加更新量）设定下，后向资格迹每步更新之和，与前向 $\lambda$-回报的更新量**分毫不差、严格相等**！而资格迹只需要 $O(|\mathcal{S}|)$ 内存，却实现了**每走一步立刻把惊喜信号沿整个荧光轨迹倒灌回去**！
+
+### 🎬 Remotion 动作讲解：衰减荧光尾迹与瞬时全路径信用回传
+
+<MotionPlayer id="eligibility-glow-trail" />
+
+### ✨ 交互实验：亲手操作荧光资格迹走廊（对比 $\lambda=0$ 与 $\lambda=0.85$）
+
+<EligibilityTraceMaze />
+
+<Callout type="info" title="L2 表格方法篇收官 · 下一站：深度强化学习！">
+  恭喜你已经打通了强化学习的全部经典核心地基（MDP → DP → MC → TD / SARSA / Q-learning / Double Q / TD($\lambda$)）！请注意：**第 8 章 PPO 里大名鼎鼎的广义优势估计 GAE($\gamma, \lambda$)**，数学结构上正是这里的 $\lambda$-回报在优势函数上的直接变体！  
+  接下来进入 **L3 深度强化学习篇**：当状态空间变成连续坐标和高清像素、再也建不出表格时，我们如何用函数近似与神经网络驯服真实物理世界？
 </Callout>
 
-## 核心知识点
+---
 
-- n 步回报 G_\{t:t+n\} 与偏差-方差连续谱
-- λ-回报几何加权平均（前向视角）
-- 资格迹 z_t（后向视角）：累积迹 vs 替换迹
-- 离线等价定理与 SARSA(λ) 实现
-
-## 规划交互
-
-- **`<EligibilityTraceMaze />`**：荧光资格迹迷宫实验室：控制或自动运行智能体，走过的格子留下按 (γλ)^k 衰减的荧光尾迹，触碰终局奶酪瞬间整条荧光路径同步点亮更新
-
-## 规划动效
-
-- 🎬 **`eligibility-glow-trail`**：物理光迹回传风：智能体移动留下衰减荧光尾迹，抵达终点时一道高能脉冲沿光迹瞬间照亮并加权更新所有近期状态
+<QuizBox
+  questions={[
+    {
+      question: '在 TD(λ) 资格迹走廊实验中，当智能体在第 1 回合首次走到终点拿到 +10 奶酪时，如果设定 λ = 0，有几个非终点状态的 V 值会立刻变成正数？',
+      options: ['所有走过的 7 个状态同时变成正数', '只有紧挨着奶酪的前 1 格状态变成正数，其余状态仍为 0', '所有状态都保持为 0', '只有起点状态变成正数'],
+      answerIndex: 1,
+      explanation: '当 λ = 0 时，每走一步旧状态的资格迹乘以 γ·0 = 0 立刻清零，只剩当前状态 z=1，因此严格退化为单步 TD(0)，每次只能向前传播 1 格。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：第 7 章：函数近似与深度 Q 网络 (DQN 家族)" href="/docs/07-dqn" />
+  <Card title="进入 L3 · 第 7 章：函数近似与深度 Q 网络 (DQN 家族) 🚗" href="/docs/07-dqn" description="先用键盘亲自驾驶山地车体验连续状态空间与动量蓄力，再攻克致命三元组与 DQN 全家桶！" />
 </Cards>
