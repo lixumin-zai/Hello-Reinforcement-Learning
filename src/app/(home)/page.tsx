@@ -32,7 +32,7 @@ export default function HomePage() {
         </h1>
 
         <p className="text-lg md:text-xl text-zinc-600 dark:text-zinc-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-          涵盖 5 篇 19 章 68 节全景体系：从马尔可夫决策过程、多臂老虎机、动态规划、TD 与 Q-learning，一路深入到 DQN、PPO、RLHF 与 DeepSeek-R1 背后的 GRPO。
+          4 阶梯 · 10 章 34 节零空壳全景交互教程：内置 6 大可玩小游戏与物理仿真（迷雾寻宝、霓虹老虎机赌场、二十一点牌桌、山地车、倒立摆、井字棋 MCTS），搭配 24 支覆盖 7 套专属视觉世界观的 Remotion 确定性动效，从 MDP 一路贯通到 PPO、RLHF、DPO 与 DeepSeek-R1 背后的 GRPO。
         </p>
 
         {/* Actions */}
@@ -74,9 +74,9 @@ export default function HomePage() {
           <div className="p-3 rounded-2xl bg-indigo-500/10 mb-6 group-hover:scale-110 transition-all duration-300">
             <Layers className="w-7 h-7 text-indigo-500 dark:text-indigo-400" />
           </div>
-          <h3 className="text-xl font-bold mb-3">19 章全景知识框架</h3>
+          <h3 className="text-xl font-bold mb-3">10 章 34 节零空壳体系</h3>
           <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            以 <code className="text-xs">framework.json</code> 为唯一真源驱动全站大纲，遵循 Sutton &amp; Barto 经典符号体系，无缝衔接现代大模型强化学习 (RLHF / DPO / GRPO)。
+            以 <code className="text-xs">framework.json</code> 为唯一真源按 L1→L4 难度递进编排，每节兼具直觉隐喻、逐行 KaTeX 数学推导、PyTorch 代码与交互自测，无缝衔接大模型后训练 (RLHF / DPO / GRPO)。
           </p>
         </div>
 
@@ -84,9 +84,9 @@ export default function HomePage() {
           <div className="p-3 rounded-2xl bg-teal-500/10 mb-6 group-hover:scale-110 transition-all duration-300">
             <Cpu className="w-7 h-7 text-teal-500 dark:text-teal-400" />
           </div>
-          <h3 className="text-xl font-bold mb-3">浏览器内实时训练</h3>
+          <h3 className="text-xl font-bold mb-3">6 大可玩小游戏 &amp; 实时训练</h3>
           <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            内置确定性强化学习算法内核（GridWorld、价值迭代、策略迭代、SARSA、Q-learning、UCB、Thompson 采样），拖动滑块即可实时观察收敛过程。
+            不再是单调的滑动条：亲自下场玩多臂老虎机霓虹赌场、二十一点、山地车、倒立摆与井字棋 MCTS 透视对弈，再一键切换 AI 实时训练对照原理。
           </p>
         </div>
 
@@ -94,9 +94,9 @@ export default function HomePage() {
           <div className="p-3 rounded-2xl bg-amber-500/10 mb-6 group-hover:scale-110 transition-all duration-300">
             <Film className="w-7 h-7 text-amber-500 dark:text-amber-400" />
           </div>
-          <h3 className="text-xl font-bold mb-3">Remotion 动效讲解共奏</h3>
+          <h3 className="text-xl font-bold mb-3">24 支 · 7 大世界观 Remotion 动效</h3>
           <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            参考 Vibe Motion 代码动效架构，将 Bellman 备份、TD 误差、PPO 截断与 GRPO 组相对优势转化为可逐帧拖拽、可导出 MP4 的确定性动画。
+            霓虹电路、复古赌场、3B1B 黑板、等高波纹、绿绒牌桌、工程示波器与 AI 终端——每支动效皆可逐帧拖拽与导出 MP4，精准契合知识点气质。
           </p>
         </div>
       </section>

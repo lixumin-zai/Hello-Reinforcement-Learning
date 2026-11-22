@@ -1,29 +1,181 @@
 ---
-title: '10.3 DPO 直接偏好优化：完整逐行数学推导'
-description: '为什么可以彻底跳过奖励模型和在线 PPO 采样？一步不漏地推导出优雅的 DPO 闭式损失。'
-icon: 'ArrowRightLeft'
+title: 10.3 DPO 直接偏好优化：完整逐行数学推导
+description: 为什么可以彻底跳过奖励模型和在线 PPO 采样？一步不漏地推导出优雅的 DPO 闭式损失。
+icon: ArrowRightLeft
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Cards, Card } from 'fumadocs-ui/components/card';
+import { DPOLossInstrument } from '@/components/docs/10-rl-for-llm/DPOLossInstrument';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={5}
+  time="25 分钟"
+  prereqs={['10.2 Bradley-Terry 模型与 RLHF 目标', '拉格朗日乘数法 / KL 散度性质']}
+  goals={[
+    '从 KL 约束奖励最大化目标出发，一步不漏地解出闭式最优策略 π*(y|x)',
+    '通过反解得到隐式奖励函数，并用代数代入完美消去不可计算的配分函数 Z(x)',
+    '剖析 DPO 梯度的物理直觉——“动态错题加权”，看懂为什么不能直接做朴素 SFT 对比',
+    '横评 DPO 与 IPO / KTO / SimPO / 在线 RLHF 的适用边界',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★★ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. DPO 的惊人洞察：策略本身就暗藏了奖励函数
 
-## 核心知识点
+上一节我们见识了 RLHF-PPO 的笨重：必须先训一个 Reward Model，再同时在显存里塞进四个大模型做在线 Rollout 和脆弱的 PPO 调参。
 
-- 从 KL 约束最大奖励目标导出闭式最优策略 π*(y|x)
-- 反解隐式奖励 r(x,y) = β log(π/π_ref) + β log Z(x)
-- 代入 Bradley-Terry 模型消去棘手的配分函数 Z(x)
-- DPO 梯度直觉（动态错题加权）及 IPO / KTO / SimPO 变体对比
+2023 年斯坦福团队在 **Direct Preference Optimization (DPO)** 论文中提出了一个堪称神来之笔的问题：
 
-## 规划交互
+> 既然 KL 约束下的强化学习目标拥有**解析闭式最优解**，我们能不能直接把“奖励函数 $r(x,y)$”用“最优策略 $\pi^*(y|x)$”反向表达出来，从而一步绕过显式 Reward Model 和在线 PPO？
 
-- **`<DPOLossInstrument />`**：DPO 隐式奖励与梯度权重仪表盘：拖动好回答/差回答的对数概率比与 β，实时计算隐式奖励差、DPO 损失与错误样本上的梯度放大系数
+答案是可以，而且整个数学推导只有 **4 步**，每一步都清澈见底，值得你拿起纸笔亲自跟走一遍！
+
+---
+
+## 2. 逐行完整推导（一步不漏！）
+
+### 第 1 步：写出 KL 约束下的 RLHF 优化目标
+
+对任意给定的 Prompt $x$，RLHF 希望找到最大化预期奖励且不过度偏离 $\pi_{\mathrm{ref}}$ 的策略 $\pi(y \mid x)$：
+
+$$
+\max_{\pi}\; \mathbb{E}_{y \sim \pi(\cdot \mid x)}\!\left[ r(x, y) - \beta \log \frac{\pi(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)} \right]
+$$
+
+把目标取负并提取系数 $\beta > 0$，它等价于**最小化**：
+
+$$
+\min_{\pi}\; \mathbb{E}_{y \sim \pi(\cdot \mid x)}\!\left[ \log \frac{\pi(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x) \exp\!\left(\frac{1}{\beta} r(x, y)\right)} \right]
+$$
+
+### 第 2 步：构造合法概率分布，用 KL 非负性一眼读出闭式最优解 $\pi^*$
+
+注意分母 $\pi_{\mathrm{ref}}(y \mid x) \exp\!\left(\frac{1}{\beta} r(x, y)\right)$ 对所有 $y$ 求和并不等于 1。于是我们定义归一化常数（**配分函数 Partition Function**）：
+
+$$
+Z(x) \;\triangleq\; \sum_{y} \pi_{\mathrm{ref}}(y \mid x) \exp\!\left(\frac{1}{\beta} r(x, y)\right)
+$$
+
+并据此构造一个合法的概率分布：
+
+$$
+\pi^*(y \mid x) \;\triangleq\; \frac{1}{Z(x)} \pi_{\mathrm{ref}}(y \mid x) \exp\!\left(\frac{1}{\beta} r(x, y)\right)
+$$
+
+将分子分母同时乘以 $Z(x)$ 代回第 1 步的最小化目标（注意 $Z(x)$ 仅依赖 $x$ 而与 $y$ 无关，可直接提到期望之外）：
+
+$$
+\min_{\pi}\; \mathbb{E}_{y \sim \pi(\cdot \mid x)}\!\left[ \log \frac{\pi(y \mid x)}{\pi^*(y \mid x)} \right] - \log Z(x)
+\;=\; \min_{\pi}\; D_{\mathrm{KL}}\!\Big(\pi(\cdot \mid x) \,\|\, \pi^*(\cdot \mid x)\Big) - \log Z(x)
+$$
+
+由于 **Gibbs 不等式**保证了 KL 散度恒非负 $D_{\mathrm{KL}}(\pi \| \pi^*) \ge 0$，且当且仅当 $\pi \equiv \pi^*$ 时取最小值 $0$，于是我们**不费吹灰之力就得到了全局唯一的闭式最优策略**：
+
+$$
+\pi^*(y \mid x) = \frac{1}{Z(x)} \pi_{\mathrm{ref}}(y \mid x) \exp\!\left(\frac{1}{\beta} r(x, y)\right)
+$$
+
+### 第 3 步：重参数化——用最优策略反解出“隐式奖励”
+
+对上式两边同取自然对数并移项解出 $r(x, y)$：
+
+$$
+r(x, y) = \beta \log \frac{\pi^*(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)} + \beta \log Z(x)
+$$
+
+仔细看第二项 $\beta \log Z(x)$：它要求对词表长度上指数级多的所有可能句子 $y$ 求和，在工程上根本算不出来！如果是单点回归，推导就卡死在这里了。
+
+### 第 4 步：代入 Bradley-Terry 偏好模型，奇迹发生——$Z(x)$ 完美抵消！
+
+回忆 10.2 节的 Bradley-Terry 人类偏好概率，它只关心同一个 Prompt $x$ 下两个回答的**奖励差** $r(x, y_w) - r(x, y_l)$！把第 3 步的表达式直接代进去：
+
+$$
+\begin{aligned}
+r(x, y_w) - r(x, y_l)
+&= \left(\beta \log \frac{\pi^*(y_w \mid x)}{\pi_{\mathrm{ref}}(y_w \mid x)} + \cancel{\beta \log Z(x)}\right)
+ - \left(\beta \log \frac{\pi^*(y_l \mid x)}{\pi_{\mathrm{ref}}(y_l \mid x)} + \cancel{\beta \log Z(x)}\right) \\[8pt]
+&= \beta \log \frac{\pi^*(y_w \mid x)}{\pi_{\mathrm{ref}}(y_w \mid x)} - \beta \log \frac{\pi^*(y_l \mid x)}{\pi_{\mathrm{ref}}(y_l \mid x)}
+\end{aligned}
+$$
+
+那个算不出来的 $\beta \log Z(x)$ 因为只依赖 $x$、不依赖 $y$，在相减的一瞬间**灰飞烟灭**！
+
+将参数化语言模型 $\pi_\theta$ 直接替代 $\pi^*$，代入负对数似然，就得到名垂青史的 **DPO 损失函数**：
+
+$$
+\mathcal{L}_{\mathrm{DPO}}(\theta) = -\mathbb{E}_{(x, y_w, y_l) \sim \mathcal{D}}\!\left[ \log \sigma\!\left( \beta \log \frac{\pi_\theta(y_w \mid x)}{\pi_{\mathrm{ref}}(y_w \mid x)} - \beta \log \frac{\pi_\theta(y_l \mid x)}{\pi_{\mathrm{ref}}(y_l \mid x)} \right) \right]
+$$
+
+无需奖励模型，无需 Critic，无需在线 Rollout 采样——只用离线偏好数据跑类似交叉熵的纯监督梯度下降，就能直接逼近 RLHF 的最优策略！
+
+---
+
+## 3. DPO 梯度的精妙之处：动态“错题加权”
+
+定义隐式奖励 $\hat{r}_\theta(x, y) \triangleq \beta \log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)}$，令 Margin $u = \hat{r}_\theta(x, y_w) - \hat{r}_\theta(x, y_l)$。利用恒等式 $\frac{d}{du}(-\log \sigma(u)) = -\sigma(-u)$，直接求 $\mathcal{L}_{\mathrm{DPO}}(\theta)$ 对参数 $\theta$ 的梯度：
+
+$$
+\nabla_\theta \mathcal{L}_{\mathrm{DPO}}(\theta)
+= -\beta\, \mathbb{E}_{(x, y_w, y_l)}\!\Big[ \underbrace{\sigma\!\big(\hat{r}_\theta(x, y_l) - \hat{r}_\theta(x, y_w)\big)}_{\text{动态错题权重 } w \in (0, 1)} \Big( \underbrace{\nabla_\theta \log \pi_\theta(y_w \mid x)}_{\text{抬高好回答概率}} - \underbrace{\nabla_\theta \log \pi_\theta(y_l \mid x)}_{\text{压低差回答概率}} \Big) \Big]
+$$
+
+这个梯度里藏着一个绝妙的自适应机制：
+- 当模型**把好坏搞反了**（$\hat{r}_l > \hat{r}_w$，即 $u < 0$），权重 $\sigma(-u)$ 迅速逼近 **100%**，梯度开足马力猛推好回答、猛压差回答；
+- 当模型**已经把好坏充分拉开**（$\hat{r}_w \gg \hat{r}_l$），权重 $\sigma(-u) \to 0$，自动停止过度优化该样本，防止把语言模型推崩！
+
+### 交互实验：亲手拨动 DPO 隐式奖励仪表盘
+
+拖动好/差回答的对数概率比与温度系数 $\beta$，观察 Margin、DPO 损失与紫色“动态错题权重”曲线的实时联动：
+
+<DPOLossInstrument />
+
+---
+
+## 4. DPO 的局限与后继家族全景对比
+
+尽管 DPO 极大地降低了对齐门槛（只需 2 个模型：可训练的 $\pi_\theta$ + 冻结的 $\pi_{\mathrm{ref}}$，甚至不需要采样），但在大规模实战中也暴露了几个值得警惕的坑：
+
+1. **离线分布偏移（Off-Policy Distribution Shift）**：DPO 只在静态离线偏好对上训练，一旦 $\pi_\theta$ 逐渐偏离采集数据时的分布，可能产生模型自己常犯但数据集中没覆盖的新错误；
+2. **双降现象（Likelihood Displacement）**：有时只要让 $\log \pi_\theta(y_l)$ 跌得比 $\log \pi_\theta(y_w)$ 更惨，差值 Margin 依然在变大，导致好回答自身的绝对生成概率反而也在缓慢下降！
+3. **偏好过拟合**：当偏好对接近确定性标签（无噪声）时，为了把 $\sigma(u) \to 1$，模型会试图把 $u \to +\infty$，削弱 KL 正则效果。
+
+为此，社区演化出了一系列经典改进变体：
+
+| 算法 | 核心改动 | 解决的痛点 |
+| :--- | :--- | :--- |
+| **IPO** (Identity PO) | 把 $-\log\sigma(u)$ 换成二次目标 $\big(u - \frac{1}{2\beta}\big)^2$ | 设定有限目标 Margin，防止 $u \to +\infty$ 过拟合 |
+| **KTO** (Kahneman-Tversky) | 无需成对 $(y_w, y_l)$，只需单条点赞/点踩二元信号 | 大幅降低人类标注成本，贴合真实产品点赞日志 |
+| **SimPO** (Simple PO) | 用长度归一化对数概率 $\frac{\beta}{\lvert y\rvert}\log\pi_\theta(y \mid x)$ + 目标间隔 $\gamma$ | **连参考模型 $\pi_{\mathrm{ref}}$ 都省掉**，并缓解长回答偏置 |
+| **Online / Iterative DPO** | 每训练一轮就用最新 $\pi_\theta$ 重新采样并打标再跑 DPO | 补齐在线探索短板，缩小与在线 PPO/GRPO 的能力差距 |
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 DPO 的数学推导中，难以直接计算的配分函数 Z(x) 最终是如何被消除的？',
+      options: [
+        '使用蒙特卡洛采样近似估计 Z(x)',
+        '假设 Z(x) 恒等于 1',
+        '因为 Z(x) 仅依赖 Prompt x 而不依赖回答 y，代入 Bradley-Terry 奖励差 r(x, y_w) - r(x, y_l) 时两项完全抵消',
+        '利用 Critic 价值网络专门拟合 log Z(x)',
+      ],
+      answerIndex: 2,
+      explanation: '同一 Prompt x 下，好回答 y_w 与差回答 y_l 共享完全相同的 β log Z(x)，相减即严格消去，无需任何近似！',
+    },
+    {
+      question: '关于 DPO 梯度中的动态权重因子 σ(r̂_l - r̂_w)，以下理解正确的是？',
+      options: [
+        '它是常数 0.5，对所有样本一视同仁',
+        '当模型错误地给差回答赋予更高的隐式奖励（r̂_l > r̂_w）时，该权重接近 1，会重点放大纠错梯度',
+        '当好回答已经远高于差回答时，该权重最大',
+        '去掉该权重后退化为无害的普通交叉熵，效果完全相同',
+      ],
+      answerIndex: 1,
+      explanation: 'DPO 原论文的消融实验明确指出：去掉这个动态错题加权因子后，直接拉大 log π(y_w) - log π(y_l) 会迅速导致语言模型退化崩坏。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：10.4 GRPO、RLVR 与 RL 工程调试全景清单" href="/docs/10-rl-for-llm/04-grpo-and-engineering" />
+  <Card title="终章大结局：10.4 GRPO、RLVR 与 RL 工程调试全景清单" href="/docs/10-rl-for-llm/04-grpo-and-engineering" description="揭秘 DeepSeek-R1 背后的 GRPO 组相对优势算法、可运行 PyTorch/TRL 代码，以及你的 RL 异常曲线排查手册！" />
+  <Card title="上一节：10.2 RLHF 三阶段架构与奖励黑客" href="/docs/10-rl-for-llm/02-rlhf-and-reward-hacking" description="对比传统在线 RLHF 四大模型架构与 DPO 的工程取舍。" />
 </Cards>

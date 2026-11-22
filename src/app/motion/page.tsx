@@ -8,7 +8,7 @@ import { MotionPlayer } from '@/components/motion/MotionPlayer';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function MotionStudioPage() {
-  const [selectedId, setSelectedId] = useState(motionEntries[0]?.id ?? 'agent-env-loop');
+  const [selectedId, setSelectedId] = useState(motionEntries[0]?.id ?? 'agent-env-pulse');
   const current = motionEntries.find((m) => m.id === selectedId) ?? motionEntries[0];
 
   return (
@@ -54,7 +54,7 @@ export default function MotionStudioPage() {
             </p>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[72vh] overflow-y-auto pr-1">
             {motionEntries.map((item) => {
               const active = item.id === current?.id;
               return (

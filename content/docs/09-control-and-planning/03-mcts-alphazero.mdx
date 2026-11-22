@@ -6,28 +6,93 @@ icon: 'TreePine'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { MCTSTicTacToeGame } from '@/components/docs/09-control-and-planning/MCTSTicTacToeGame';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="24 分钟"
+  prereqs={['2.3 UCB1 置信上界', '9.2 基于模型规划']}
+  goals={[
+    '亲手与真实 MCTS 引擎对弈井字棋，实时观察搜索树如何按 UCT 分配访问预算',
+    '牢记 MCTS 的四个标准阶段（Selection / Expansion / Simulation / Backpropagation）',
+    '理解 AlphaZero 如何用策略价值网络升维 MCTS，以及 MuZero 如何扔掉已知规则统一一切',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 决策时规划（Decision-Time Planning）：临阵多想几步！
+
+前面学的所有算法都在做**背景规划**（提前把全宇宙所有状态的策略学进网络权重里）。但下围棋或国际象棋时，哪怕你是九段大师，落子前也一定要**盯着眼前这一盘具体局面，在脑海里往前多推演十几步变化**——这就是**决策时规划**的王者：**蒙特卡洛树搜索（Monte Carlo Tree Search, MCTS）**。
+
+### 先和真实 MCTS AI 过两招，顺便透视它的大脑！
+
+下方是运行在浏览器里的**真·MCTS 井字棋引擎**。你执 `X` 先手，每落一子右侧立刻实时剖开 AI 刚长出的搜索树（显示各候选落子的访问次数 $N$、估算胜率 $W/N$ 及它预判你的热门应对）。试试把推演预算从 `350` 降到 `15` 击败它，再拉到 `600` 感受完美防守：
+
+<MCTSTicTacToeGame />
+
+---
+
+## 2. MCTS 的四拍心跳：把第 2 章 UCB1 搬进一棵树！
+
+MCTS 在每次真正落子前，把算力预算拆成数百/数千次循环，每一次循环严格走完 4 步：
+
+1. **选择（Selection）**：从当前局面根节点出发，在已展开的树内部，每层都像多臂老虎机一样选 **UCT（Upper Confidence Bounds for Trees）** 分数最高的子节点一路下探：
+   $$
+   \text{UCT}(s, a) \;=\; \underbrace{\frac{W(s, a)}{N(s, a)}}_{\text{平均胜率（利用）}} \;+\; \underbrace{c \sqrt{\frac{\ln N(s)}{N(s, a)}}}_{\text{不确定性加成（探索）}}
+   $$
+   **看！第 2 章学的 UCB1 公式在这里华丽重生！** 它自动把宝贵的搜索算力倾斜给最有希望赢棋的“主干变化”，不再像传统 Minimax 那样在毫无意义的垃圾招法上浪费指数级时间！
+2. **扩展（Expansion）**：下探到某个还有未尝试合法招法的节点时，随机挑一个新招法长出一枚新叶子节点；
+3. **模拟（Simulation / Rollout）**：从新叶子出发，用轻量随机策略飞快把棋下完，得到终局结果 $z \in \{+1, 0.5, 0\}$；
+4. **回传（Backpropagation）**：把胜负结果 $z$ 沿原路倒推回根节点，更新沿途每一个节点的统计量：$N \leftarrow N + 1,\; W \leftarrow W + z$。
+
+搜索预算耗尽后，直接选**根节点下访问次数 $N(s, a)$ 最多**的动作落子！
+
+### 🎬 Remotion 动作讲解：MCTS 有机分形树四阶段循环
+
+<MotionPlayer id="mcts-living-tree" />
+
+---
+
+## 3. 从经典 MCTS 到 AlphaZero 与 MuZero 的两次史诗跃迁
+
+| 演进世代 | 核心创新突破 | 还需要人类棋谱吗？ | 还需要已知游戏规则吗？ |
+| --- | --- | --- | --- |
+| **经典 MCTS** | UCT 选择 + 随机模拟到终局（如上方井字棋） | ❌ 不需要 | ✅ 需要精确规则模拟器 |
+| **AlphaZero (2017)** | 用双头深度网络 $(P_\theta(s), v_\theta(s))$ 替代随机模拟！UCT 升级为 **PUCT**：$Q(s,a) + c_{\text{puct}} P_\theta(s,a)\frac{\sqrt{\sum_b N(s,b)}}{1 + N(s,a)}$；再用 MCTS 搜索出的改进访问分布 $\pi_{\text{MCTS}}$ 反过来监督训练策略网络（**超级 GPI！**） | ❌ 纯零起点自博弈 | ✅ 需要精确规则模拟器 |
+| **MuZero (2019)** | **扔掉规则模拟器！** 额外学习三个隐空间网络——表征 $h(o) \to s^0$、隐动力学 $g(s^k, a) \to (r^k, s^{k+1})$、预测 $f(s^k) \to (p^k, v^k)$，**直接在学出来的隐空间里跑 MCTS**！横扫围棋、象棋与 57 款未知规则的 Atari 游戏！ | ❌ 不需要 | ❌ **完全不需要！** |
+
+### AlphaZero 的极简统一训练损失函数
+
+每一局自博弈结束后，我们收集每一步的真实局面 $s_t$、MCTS 搜索统计出的改进动作分布 $\pi_t(a) \propto N(s_t, a)^{1/\tau}$，以及整盘棋的最终胜负 $z \in \{-1, 0, +1\}$。双头神经网络 $(p_\theta, v_\theta) = f_\theta(s_t)$ 的总损失只有极其优雅的三项：
+
+$$
+\mathcal{L}_{\mathrm{AlphaZero}}(\theta) = \underbrace{(z - v_\theta(s_t))^2}_{\text{价值头预测终局胜负 (MSE)}} \;-\; \underbrace{\pi_t^\top \log p_\theta(s_t)}_{\text{策略头模仿 MCTS 搜索分布 (交叉熵)}} \;+\; \underbrace{c\|\theta\|^2}_{L_2 \text{ 权重衰减}}
+$$
+
+你会惊讶地发现：**整套 AlphaZero 甚至没有用到策略梯度公式**——因为 MCTS 前瞻搜索本身就充当了一个威力无穷的“策略改进算子（Policy Improvement Operator）”，把直觉网络 $p_\theta$ 升华成更强的 $\pi_t$，再通过交叉熵蒸馏回神经网络权重中，周而复始直至超越人类千年棋艺！
+
+<Callout type="tip" title="最后一站：当 RL 遇见大语言模型！">
+  你可能没想到：当代顶尖推理大模型（如 OpenAI o1 / DeepSeek-R1）的「测试时计算扩展（Test-Time Compute Scaling）」与长思维链强化学习，思想脉络直接继承自 AlphaZero 的「搜索增强 + 强化自举」！接下来进入全书压轴的 **第 10 章：RLHF、DPO 与 GRPO**！
 </Callout>
 
-## 核心知识点
+---
 
-- MCTS 四阶段循环：Selection / Expansion / Simulation / Backpropagation
-- UCT 公式与探索常数 C_puct
-- AlphaZero：用策略价值网络 P(s,a), V(s) 替换随机 Rollout
-- MuZero：在不告知游戏规则下学习隐空间动力学规划
-
-## 规划交互
-
-- **`<MCTSTicTacToeGame />`**：完整小游戏《井字棋 MCTS 透视对弈台》：人机实战对弈，每步右侧实时生长真实的 MCTS 树结构（标注访问数 N、胜率 W/N 与 UCT 值），支持慢放四阶段
-
-## 规划动效
-
-- 🎬 **`mcts-living-tree`**：有机分形树生长风：发光脉络沿 UCT 最大分支下探（选择）→ 萌发新叶节点（扩展）→ 虚拟快进推演终局（模拟）→ 胜负光球沿枝干回流刷新祖先 W/N（回传）
+<QuizBox
+  questions={[
+    {
+      question: '在 AlphaZero 的训练闭环中，MCTS 搜索与策略价值网络 (P_θ, v_θ) 是如何互相成就的？',
+      options: ['神经网络只在测试时使用，训练时不用', '网络先验 P_θ 和估值 v_θ 引导 MCTS 更高效地聚焦好招法，而 MCTS 多步前瞻得出的更强访问分布 π_MCTS 又反过来作为监督目标训练升级网络（典型的强力 GPI）', 'MCTS 用来替换反向传播算法', '两者相互独立，互不交换信息'],
+      answerIndex: 1,
+      explanation: 'AlphaZero 把 MCTS 变成了一个极其强悍的“策略改进算子”，每一次自博弈迭代都在不断抬高网络与搜索的共同上限！',
+    },
+    {
+      question: '相比 AlphaZero，MuZero 最具革命性的突破是什么？',
+      options: ['MuZero 必须读取 100 万盘人类大师棋谱才能启动', 'MuZero 不需要人工提供游戏规则模拟器，而是直接学习价值等效的隐空间动力学网络，在隐空间里运行 MCTS', 'MuZero 彻底放弃了树搜索，只用 Q-table', 'MuZero 只能玩井字棋和围棋'],
+      answerIndex: 1,
+      explanation: 'MuZero 甚至不去重建每一帧像素，只要求学出的隐状态能准确预测未来每一步的策略、价值与奖励（Value-Equivalent Model），从而把树搜索推广到了未知规则的复杂环境！',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：第 10 章：强化学习与大语言模型——RLHF、DPO 与 GRPO" href="/docs/10-rl-for-llm" />
+  <Card title="进入第 10 章：强化学习与大语言模型——RLHF、DPO 与 GRPO 🤖" href="/docs/10-rl-for-llm" description="从 Token 级 MDP、Reward Hacking 沙盒、DPO 完整逐行推导，一路打通到 DeepSeek-R1 背后的 GRPO 与工程调试清单！" />
 </Cards>

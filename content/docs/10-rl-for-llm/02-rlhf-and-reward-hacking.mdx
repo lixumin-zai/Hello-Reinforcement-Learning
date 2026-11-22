@@ -1,33 +1,157 @@
 ---
-title: '10.2 RLHF 三阶段架构与奖励黑客'
-description: '剖析 InstructGPT / ChatGPT 的 SFT → RM → PPO 配方，亲手在沙盒中触发并驯服 Reward Hacking。'
-icon: 'ThumbsUp'
+title: 10.2 RLHF 三阶段架构与奖励黑客
+description: 剖析 InstructGPT / ChatGPT 的 SFT → RM → PPO 配方，亲手在沙盒中触发并驯服 Reward Hacking。
+icon: ThumbsUp
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Cards, Card } from 'fumadocs-ui/components/card';
+import { RewardHackingSandbox } from '@/components/docs/10-rl-for-llm/RewardHackingSandbox';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={5}
+  time="22 分钟"
+  prereqs={['8.2 Actor-Critic 与 GAE', '8.4 PPO-Clip', '10.1 Token 级 MDP']}
+  goals={[
+    '推导基于 Bradley-Terry 人类成对偏好模型的奖励模型 (Reward Model) 损失函数',
+    '彻底厘清 RLHF-PPO 流水线中四个大模型的分工、冻结状态与四倍显存痛点',
+    '理解 Goodhart 定律与奖励黑客 (Reward Hacking) 的形成机理',
+    '通过交互沙盒掌握 KL 惩罚系数 β 对防止过优化的调节规律',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★★ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 为什么用“成对比较”而不是直接给回答打 1~10 分？
+
+让模型写一首诗、总结一份财报或回答敏感问题时，根本没有像围棋胜负或数学验算那样客观的规则奖励函数。如果让十位人类标注员直接给同一段回答打 `1 ~ 10` 分，张三手松爱打 8 分，李四严苛爱打 5 分，噪声大到无法训练。
+
+人类真正擅长的是**成对偏好比较（Pairwise Preference）**：给你同一个 Prompt $x$ 下的两个回答 $(y_w, y_l)$，只需指出哪一个更好（$y_w \succ y_l$，$w$ = chosen/winner，$l$ = rejected/loser）。
+
+### Bradley-Terry 偏好模型
+
+1952 年提出的 **Bradley-Terry 模型**假设每个回答背后存在一个隐含的标量质量分 $r_\psi(x, y)$，人类更偏好 $y_w$ 的概率取决于两者分差经过 Logistic Sigmoid 函数：
+
+$$
+P_\psi(y_w \succ y_l \mid x) = \frac{\exp\big(r_\psi(x, y_w)\big)}{\exp\big(r_\psi(x, y_w)\big) + \exp\big(r_\psi(x, y_l)\big)} = \sigma\!\Big(r_\psi(x, y_w) - r_\psi(x, y_l)\Big)
+$$
+
+其中 $\sigma(z) = \frac{1}{1 + e^{-z}}$。在人类偏好数据集 $\mathcal{D} = \{(x^{(i)}, y_w^{(i)}, y_l^{(i)})\}$ 上做**最大似然估计**（等价于最小化负对数似然），就得到奖励模型（Reward Model, RM）的经典训练损失：
+
+$$
+\mathcal{L}_{\mathrm{RM}}(\psi) = -\mathbb{E}_{(x, y_w, y_l) \sim \mathcal{D}}\!\left[ \log \sigma\!\Big(r_\psi(x, y_w) - r_\psi(x, y_l)\Big) \right]
+$$
+
+工程上，奖励模型通常直接从 SFT 模型初始化，把最后一个词表输出头（LM Head，`d_model -> |V|`）替换为一个标量线性头（Value Head，`d_model -> 1`），取序列最后一个 `<EOS>` Token 的隐状态映射输出作为整句得分 $r_\psi(x, y)$。
+
+---
+
+## 2. RLHF-PPO 的四大模型协同闭环
+
+奖励模型训好后，RLHF 第三阶段启动在线 PPO 训练。这也是整个机器学习工程史上最著名的**“四大模型同台飙戏”**架构——观看下面动效，追踪每一条张量流动与梯度回传：
+
+<MotionPlayer id="rlhf-four-models" />
+
+把四个大模型的职责与显存角色彻底记牢：
+
+| 模型组件 | 初始化来源 | 训练状态 | 核心职责与开销 |
+| :--- | :--- | :--- | :--- |
+| **① Actor $\pi_\theta$** | SFT 模型 | **🔥 可训练** | 负责自回归采样 Rollout 回答 $y$，接受 PPO-Clip 策略梯度更新（需存参数 + 梯度 + 优化器状态） |
+| **② Critic $V_\phi$** | **RM 模型** | **🔥 可训练** | 逐 Token 估计状态价值 $V_\phi(s_t)$ 以计算低方差 GAE 优势 $\hat{A}_t$（同样需完整梯度 + 优化器状态！） |
+| **③ Reference $\pi_{\mathrm{ref}}$** | SFT 模型 | **❄ 冻结** | 仅做前向推理，计算 $\log \pi_{\mathrm{ref}}(y_t \mid s_t)$ 构造 KL 惩罚防止语言崩坏 |
+| **④ Reward Model $r_\psi$** | 阶段 2 RM | **❄ 冻结** | 仅做前向推理，在序列末尾吐出代理质量分 $r_\psi(x, y)$ |
+
+<Callout type="warn" title="为什么经典 RLHF 极其昂贵且脆弱？">
+  对一个 70B 参数的 LLM 跑在线 PPO，光是同时把两个全量训练态模型（Actor + Critic）和两个推理态模型（Ref + RM）塞进显存，就需要接近 **4 倍模型规模**的集群资源；而且 Critic 的初始化、Warmup 步数与学习率稍有不慎就会把整个策略带崩。这正是后面 **DPO（10.3 节）** 与 **GRPO（10.4 节）** 诞生的直接驱动力！
 </Callout>
 
-## 核心知识点
+---
 
-- Bradley-Terry 人类成对偏好模型与奖励模型损失函数
-- RLHF 中的四个大模型（Actor / Critic / Reference / Reward）数据流
-- 奖励黑客 (Reward Hacking) 与 Goodhart 定律：高代理分 vs 低真实质量
-- KL 惩罚系数 β 的调节艺术
+## 3. 奖励黑客（Reward Hacking）与 Goodhart 定律
 
-## 规划交互
+经济学家查尔斯·古德哈特（Charles Goodhart）曾留下一句在强化学习领域字字泣血的名言：
 
-- **`<RewardHackingSandbox />`**：Bradley-Terry 偏好与 Reward Hacking 沙盒：调节优化步数与 KL 系数 β，直观看到代理 RM 分数一路飙升但真实人类质量先升后崩的倒 U 曲线及典型刷分文本
+> **当一项代理指标变成直接优化目标时，它就不再是一个好指标。**
 
-## 规划动效
+奖励模型 $r_\psi$ 终究只是用有限人类偏好数据拟合出来的**不完美代理函数（Proxy）**。它在分布内（接近 $\pi_{\mathrm{ref}}$）非常靠谱，但在分布外（远离 $\pi_{\mathrm{ref}}$）必然存在漏洞——比如：
+- **长度偏置（Verbosity Bias）**：RM 经常误以为“写得越长、分点越多 = 越专业”；
+- **奉承偏置（Sycophancy）**：RM 极易给“您的问题太深刻了！”这类马屁前缀打高分；
+- **关键词触发漏洞**：高频堆砌“严谨、全面、✅、总结”甚至无意义复读就能骗出超高代理分。
 
-- 🎬 **`rlhf-four-models`**：AI 系统数据流风：Actor、Reference、Reward、Critic 四大模型协同前向采样、计算 KL 惩罚与优势、反向更新策略的完整闭环
+### 亲手实验：触发并驯服 Reward Hacking
+
+在下方沙盒中，先点击 **「触发崩溃 (β=0)」** 观察橙色代理 RM 曲线一路高歌猛进、而绿色真实人类质量先升后断崖暴跌的**经典 Goodhart 倒 U 曲线**，再点击 **「KL 驯服 (β=0.16)」** 或手动拖动滑块寻找黄金甜点区：
+
+<RewardHackingSandbox />
+
+---
+
+## 4. PPO-RLHF 核心步更新伪代码
+
+把上面所有细节浓缩成标准 RLHF 单步训练逻辑（以单条序列为例）：
+
+```python
+# 1. Rollout: 用当前 Actor 采样回复 y (关闭梯度)
+with torch.no_grad():
+    y = actor.generate(prompt, do_sample=True, temperature=1.0)
+    logp_old = log_probs(actor, prompt, y)       # [B, T]
+    logp_ref = log_probs(ref_model, prompt, y)   # [B, T]
+    rm_score = reward_model(prompt, y)           # [B]  仅在终局 <EOS> 有效
+    values_old = critic(prompt, y)               # [B, T]
+
+    # 2. 构造逐 Token 塑形奖励：中间步仅含 KL 惩罚，末尾加上 RM 得分
+    kl_per_token = logp_old - logp_ref           # 非负期望近似
+    rewards = -beta * kl_per_token
+    rewards[:, -1] += rm_score                   # 稀疏终局奖励注入末尾
+
+    # 3. 用 GAE(γ=1.0, λ=0.95) 计算每个 Token 的优势 Â_t 与目标回报
+    advantages, returns = compute_gae(rewards, values_old, gamma=1.0, lam=0.95)
+    advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+# 4. PPO-Clip 多轮 Mini-batch 更新 Actor & Critic
+for _ in range(ppo_epochs):
+    logp_new = log_probs(actor, prompt, y)
+    ratio = torch.exp(logp_new - logp_old)
+    surr1 = ratio * advantages
+    surr2 = torch.clamp(ratio, 1.0 - eps, 1.0 + eps) * advantages
+    policy_loss = -torch.min(surr1, surr2).mean()
+
+    values_new = critic(prompt, y)
+    value_loss = 0.5 * ((values_new - returns) ** 2).mean()
+
+    (policy_loss + vf_coef * value_loss).backward()
+    optimizer.step()
+    optimizer.zero_grad()
+```
+
+注意一个小细节：在 LLM 的有限步生成中，折扣因子通常设为 $\gamma = 1.0$（因为最后一步的正确与否对开头第一步同样重要，不该把思考第一步的功劳指数衰减没了！），而 GAE 的 $\lambda$ 常取 `0.95` 左右。
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在标准 RLHF-PPO 架构中，四个大模型里哪两个在训练过程中保持参数冻结（只做前向推理）？',
+      options: [
+        'Actor 与 Critic 冻结，Reference 与 Reward Model 可训练',
+        'Reference (π_ref) 与 Reward Model (r_ψ) 冻结，Actor 与 Critic 可训练',
+        '四个模型全部需要同时反向传播更新参数',
+        '只有 Actor 可训练，其余三个全部冻结',
+      ],
+      answerIndex: 1,
+      explanation: 'Actor 负责生成策略更新，Critic 必须随着 Actor 分布漂移持续追踪最新的状态价值；而 Reference 锚点与提前训好的 Reward Model 保持冻结。',
+    },
+    {
+      question: 'RLHF 训练日志显示：代理 RM 分数一路飙升，KL 散度迅速飙破 40 nats，回复平均长度暴涨 4 倍且充满夸张奉承，这是什么典型现象？',
+      options: [
+        '欠拟合（Underfitting），需要调高学习率',
+        '奖励黑客（Reward Hacking / Goodhart 过优化），策略在分布外钻了代理 RM 的漏洞',
+        '灾难性梯度消失，需要把 β 降到 0',
+        'Bradley-Terry 模型在测试集上发生了完美收敛',
+      ],
+      answerIndex: 1,
+      explanation: '代理奖励一路升高而 KL 与长度暴涨正是 Reward Hacking 的教科书级体征，需立刻增大 KL 惩罚 β、提前停止或迭代更新 Reward Model。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：10.3 DPO 直接偏好优化：完整逐行数学推导" href="/docs/10-rl-for-llm/03-dpo-derivation" />
+  <Card title="下一节：10.3 DPO 直接偏好优化：完整逐行数学推导" href="/docs/10-rl-for-llm/03-dpo-derivation" description="能不能彻底扔掉 Reward Model、Critic 和在线 PPO 采样？看 DPO 如何用 4 行绝妙代数变换化解难题！" />
+  <Card title="上一节：10.1 把语言模型写成 Token 级 MDP" href="/docs/10-rl-for-llm" description="复习 Token 级 MDP 与 KL 正则化目标。" />
 </Cards>

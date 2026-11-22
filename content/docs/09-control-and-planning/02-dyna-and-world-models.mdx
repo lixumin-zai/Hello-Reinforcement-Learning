@@ -6,24 +6,103 @@ icon: 'Box'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { DynaQPlannerLab } from '@/components/docs/09-control-and-planning/DynaQPlannerLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="18 分钟"
+  prereqs={['6.2 Q-learning', '第 7 章深度表征']}
+  goals={[
+    '理解 Model-Free 与 Model-Based 在样本效率与渐近上限上的核心权衡',
+    '掌握 Dyna-Q 如何将真实交互、模型学习与脑内规划三者融为一体',
+    '理解现代世界模型（World Models / Dreamer）如何在隐空间做纯想象 Actor-Critic 训练',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 人类为什么不用撞 100 万次墙才学会开车？
+
+无模型强化学习（DQN / PPO / SAC）最大的痛点是**样本效率极低**——往往要跑几百万帧真实交互才能学会一款游戏。而人类之所以学得快，是因为我们大脑里有一座**世界模型（World Model）**：闭上眼睛就能在脑海里模拟“如果我猛打方向盘，车会冲出护栏”，根本不用真去撞！
+
+---
+
+## 2. Dyna-Q：把“直接学习”与“脑内想象规划”缝合起来
+
+Sutton 提出的 **Dyna 架构**揭示了一个惊人简洁的统一视图：真实环境返回的每一条经验 $(S_t, A_t, R_{t+1}, S_{t+1})$ 应当被**一鱼两吃**：
+
+1. **直接 RL（Direct RL）**：像普通 Q-learning 一样，直接用真实经验更新一次 $Q(S_t, A_t)$；
+2. **模型学习（Model Learning）**：把这条规律记进脑海里的环境模型 $\text{Model}(S_t, A_t) \leftarrow (R_{t+1}, S_{t+1})$；
+3. **脑内想象规划（Planning）**：循环 **$n$ 次**，随机挑出过去见过的 $(s, a)$，向大脑模型询问模拟结果 $(r, s') = \text{Model}(s, a)$，再用模拟结果继续跑 Q-learning 更新！
+
+### 🌀 交互实验：6×9 Dyna Maze 实战——把规划步数 $n$ 拉高看速度暴涨！
+
+<DynaQPlannerLab />
+
+### Dyna-Q 与 Dyna-Q+ 完整伪代码
+
+对比下面不到 20 行的核心循环，你会看到真实交互与脑内规划是如何共享同一份 $Q$ 表的：
+
+```python
+# Dyna-Q / Dyna-Q+ 核心主循环
+for step in range(total_steps):
+    a = epsilon_greedy(Q, s, eps=0.1)
+    s_next, r, done = env.step(a)
+
+    # 1. 直接 RL：用真实经验更新 Q(s, a)
+    target = r + (0.0 if done else gamma * Q[s_next].max())
+    Q[s, a] += alpha * (target - Q[s, a])
+
+    # 2. 模型学习：记录确定性转移规律，并刷新该动作的“最近访问时间戳”
+    model[(s, a)] = (r, s_next, done)
+    last_visited[(s, a)] = step
+
+    # 3. 脑内想象规划：循环 n 次，用记忆模型免费刷题！
+    for _ in range(planning_steps):
+        ps, pa = sample_previously_observed(model)
+        pr, ps_next, pdone = model[(ps, pa)]
+        # Dyna-Q+ 关键一行：给久未访问的状态-动作加上时间好奇心奖金 κ√τ
+        tau = step - last_visited[(ps, pa)]
+        bonus = kappa * math.sqrt(tau)   # 标准 Dyna-Q 时 kappa = 0
+        ptarget = (pr + bonus) + (0.0 if pdone else gamma * Q[ps_next].max())
+        Q[ps, pa] += alpha * (ptarget - Q[ps, pa])
+
+    s = env.reset() if done else s_next
+```
+
+<Callout type="warn" title="世界模型的致命陷阱：复合模型误差（Compounding Model Error）">
+  如果学习到的世界模型哪怕每一步只有 $2\%$ 的预测误差，在脑海里连续想象推演 50 步后，画面就会彻底崩坏幻觉化；更糟的是，**策略优化器会专门寻找世界模型预测虚高的“幻觉漏洞”去刷分**！  
+  因此在 Dyna-Q 中，若真实迷宫突然打通了一条新捷径，旧模型可能意识不到；解决思路包括 **Dyna-Q+**（给久未访问的动作加时间流逝探索奖金 $\kappa\sqrt{\tau}$）以及限制模型滚动视野长度（如 **MBPO** 只敢在模型里短距离滚 $1\sim 5$ 步）。
 </Callout>
 
-## 核心知识点
+---
 
-- Model-Free vs Model-Based 的样本效率与模型误差权衡
-- Dyna-Q 统一架构：直接 RL、模型学习与脑内规划
-- 环境突变（捷径打开）时模型误差陷阱与 Dyna-Q+
-- World Models 与 Dreamer 隐空间想象训练
+## 3. 从表格模型到现代深度世界模型：Dreamer 系列
 
-## 规划交互
+如何给高维像素游戏或真实机器人建世界模型？直接逐像素预测下一帧图像既笨重又充满无关噪声（例如飘动的云彩）。
 
-- **`<DynaQPlannerLab />`**：Dyna-Q 迷宫规划步数对比实验：在同一迷宫中自由调节脑内规划步数 n=0/5/30，实时对比回合步数骤降与环境墙壁突变时的适应差异
+**Dreamer / DreamerV3（Hafner et al., 2020–2023）**采用**循环状态空间模型（RSSM）**将像素编码为紧凑的**隐状态 $z_t$**（结合确定性循环记忆 $h_t$ 与离散随机潜变量 $z_t$）：
+1. **表征与动力学学习**：用编码器 $q_\phi(z_t \mid h_t, x_t)$ 压缩观测图像，同时训练先验动力学 $p_\phi(\hat{z}_t \mid h_t)$、奖励预测头 $\hat{r}_t$ 与终止预测头；
+2. **隐空间“梦境”训练**：完全脱离真实环境，在隐空间并行展开成千上万条长度 $H=15$ 步的想象轨迹，用 $\lambda$-return 计算目标并更新 Actor 与 Critic；
+3. **跨尺度归一化（SyMLog）**：DreamerV3 通过对奖励和价值目标应用对称对数变换 $\operatorname{symlog}(x) = \operatorname{sign}(x)\ln(|x|+1)$，仅凭一套固定超参数就成为了**首个不靠人类示范、从零在《我的世界 (Minecraft)》里挖出钻石**的通用 RL 算法！
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 Dyna-Q 中，增加每步的脑内规划步数 n（例如从 n=0 提高到 n=30）会付出什么代价，换来什么收益？',
+      options: ['增加与真实环境的交互次数，降低计算量', '显著增加单步内部 CPU/GPU 计算量，但大幅减少与真实环境的交互次数（样本效率成倍提升）', '完全消除探索的必要性', '让算法退化为蒙特卡洛方法'],
+      answerIndex: 1,
+      explanation: 'Model-Based RL 的核心交易就是“用便宜的内部算力（想象规划）换取昂贵的真实世界样本”！',
+    },
+    {
+      question: '当迷宫中突然开辟出一条原本被墙堵死的“新捷径”时，为什么标准 Dyna-Q 往往视而不见，而 Dyna-Q+ 能敏锐发现？',
+      options: ['因为标准 Dyna-Q 不能处理墙壁', '因为标准 Dyna-Q 已经收敛到旧路径，不再重新测试旧墙体，其内部模型永久停留在过时记忆；Dyna-Q+ 给久未访问的动作附加 κ√τ 奖金，驱动智能体定期复查环境变化', '因为 Dyna-Q+ 直接作弊读取了真实地图源码', '因为 Dyna-Q+ 把折扣因子 γ 设为 0'],
+      answerIndex: 1,
+      explanation: '时间流逝奖金 κ√τ 专门奖励“怀疑自己旧记忆已过时”的探索行为，让智能体在非平稳环境中及时刷新世界模型。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：9.3 蒙特卡洛树搜索 (MCTS) 与 AlphaZero / MuZero" href="/docs/09-control-and-planning/03-mcts-alphazero" />
+  <Card title="下一节：9.3 蒙特卡洛树搜索 (MCTS) 与 AlphaZero / MuZero ⭕❌" href="/docs/09-control-and-planning/03-mcts-alphazero" description="和真实 MCTS AI 过招井字棋并实时透视它的决策树生长，彻底看懂 AlphaZero 与 MuZero！" />
 </Cards>

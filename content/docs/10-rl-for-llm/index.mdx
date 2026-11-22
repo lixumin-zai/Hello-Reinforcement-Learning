@@ -1,33 +1,137 @@
 ---
-title: '10.1 把语言模型写成 Token 级 MDP'
-description: '预训练后的 LLM 为什么天然是一个随机策略？建立自回归生成与 MDP 的精确数学对应。'
-icon: 'MessageSquare'
+title: 10.1 把语言模型写成 Token 级 MDP
+description: 预训练后的 LLM 为什么天然是一个随机策略？建立自回归生成与 MDP 的精确数学对应。
+icon: MessageSquare
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Cards, Card } from 'fumadocs-ui/components/card';
+import { TokenMDPSimulator } from '@/components/docs/10-rl-for-llm/TokenMDPSimulator';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="18 分钟"
+  prereqs={['3.1 MDP 五元组', '8.1 策略梯度定理', '8.4 PPO-Clip']}
+  goals={[
+    '将自回归大语言模型精确翻译为 Token 级马尔可夫决策过程 (MDP)',
+    '理解超高维词表动作空间 |V| ≈ 10⁵ 与极度稀疏的序列级终局奖励挑战',
+    '掌握参考策略 π_ref 与 KL 惩罚项为何是大模型 RL 的“语言防退化安全带”',
+    '鸟瞰现代 LLM 后训练全景：Pretrain → SFT → 偏好对齐 (RLHF/DPO) → 可验证强化推理 (GRPO)',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 为什么大语言模型天然就是一个强化学习策略？
+
+如果你已经学完了前面 9 章，打开任何一个当代大模型（GPT、Claude、Gemini、DeepSeek）的论文，你会有一种豁然开朗的震撼：**语言生成本质上就是一个极其特殊的序贯决策问题**。
+
+在预训练（Next-Token Prediction）和监督微调（SFT）阶段，语言模型学习的是一个条件概率分布：
+
+$$
+\pi_\theta(y_t \mid x, y_{<t}) = \operatorname{Softmax}\!\left(f_\theta(x, y_{<t})\right)_{y_t}
+$$
+
+其中 $x$ 是用户输入（Prompt），$y_{<t} = (y_1, \dots, y_{t-1})$ 是已经生成的上下文前缀，$y_t \in \mathcal{V}$ 是词表中的下一个词元（Token）。只要把视野切换到强化学习坐标系，你会发现整个五元组 $(\mathcal{S}, \mathcal{A}, P, R, \gamma)$ 严丝合缝地对上了号：
+
+| 经典 RL 概念 | 大语言模型 (Token-level MDP) 对应物 | 与经典控制任务（如 Atari / 机器人）的本质区别 |
+| :--- | :--- | :--- |
+| **状态 $s_t$** | Prompt 与已生成前缀 $(x, y_{<t})$ | 状态空间维度随长度线性增长，无须显式物理状态估计 |
+| **动作 $a_t$** | 下一个词元 $y_t \in \mathcal{V}$ | **动作空间极其庞大**（词表大小 $\lvert\mathcal{V}\rvert \approx 10^5$） |
+| **状态转移 $P$** | **确定性拼接** $s_{t+1} = s_t \oplus a_t$ | 无随机环境物理噪声，转移概率恒为 $1$！ |
+| **策略 $\pi_\theta(a_t \mid s_t)$** | Transformer 输出的词表 Softmax 分布 | 已经过数万亿 Token 预训练，起点极其聪明而非从零随机试错 |
+| **回合终止 $T$** | 吐出终结符 `<EOS>` 或达到最大长度 | 轨迹长度动态变化（从几十 Token 到数万 Token 长思维链） |
+| **奖励 $R_t$** | **极度稀疏的终局奖励**（仅在 $t=T$ 非零） | 中间思考步骤全无外部打分，信用分配跨度极长 |
+
+<MotionPlayer id="llm-token-stream" />
+
+---
+
+## 2. 亲手操作：Token 级 MDP 逐词元透视
+
+在下方实验室中，点击「生成下一步 Token」逐步推进一道算术题的自回归生成。重点观察三件事：
+
+1. **状态演变**：每步只是把刚刚选中的动作 Token 拼接到状态前缀末尾；
+2. **动作空间博弈**：RL 后训练策略 $\pi_\theta$ 如何把 `<think>`、`</think>` 等推理结构词元的概率大幅拉高（相比 SFT 参考策略 $\pi_{\text{ref}}$）；
+3. **奖励结构**：前 6 步的外部奖励全是 `0.0`，只有最后一步吐出 `<EOS>` 才炸出 `+1.0`，中间每步仅由单步 KL 惩罚提供柔性约束。
+
+<TokenMDPSimulator />
+
+---
+
+## 3. 为什么非得加上参考策略 $\pi_{\text{ref}}$ 与 KL 惩罚？
+
+既然有了终局奖励 $R(x, y)$，为什么不直接最大化 $\mathbb{E}_{y \sim \pi_\theta(\cdot|x)}[R(x, y)]$ 呢？
+
+原因在于：**预训练赋予大模型的语法流畅度、世界知识与多领域泛化能力是极其珍贵的先验，但奖励函数 $R(x,y)$ 往往既狭隘又不完美。** 如果放任 $\pi_\theta$ 毫无顾忌地追逐单一奖励信号，很快就会发生两场灾难：
+
+1. **灾难性遗忘（Catastrophic Forgetting）**：模型为了迎合某类打分习惯，逐渐丧失原本清晰的自然语言表达，甚至开始重复无意义词串；
+2. **奖励黑客（Reward Hacking）**：策略专门钻奖励模型的分布外（OOD）漏洞，用人类完全看不懂的乱码骗出高分（下一节我们将亲手在沙盒里复现它！）。
+
+因此，几乎所有现代 LLM 强化学习算法都共享同一个**带 KL 锚定的正则化目标函数**：
+
+$$
+\max_{\pi_\theta}\; \mathbb{E}_{x \sim \mathcal{D},\, y \sim \pi_\theta(\cdot \mid x)}\!\left[ R(x, y) \right] \;-\; \beta\, \mathbb{E}_{x \sim \mathcal{D}}\!\left[ D_{\mathrm{KL}}\!\left(\pi_\theta(\cdot \mid x)\,\|\,\pi_{\mathrm{ref}}(\cdot \mid x)\right) \right]
+$$
+
+展开整条序列的对数似然（由于自回归分解 $\pi(y \mid x) = \prod_{t=1}^T \pi(y_t \mid x, y_{<t})$），序列级 KL 散度可以漂亮地拆解到**每一个 Token 步骤**：
+
+$$
+\log \frac{\pi_\theta(y \mid x)}{\pi_{\mathrm{ref}}(y \mid x)} = \sum_{t=1}^{T} \log \frac{\pi_\theta(y_t \mid x, y_{<t})}{\pi_{\mathrm{ref}}(y_t \mid x, y_{<t})}
+$$
+
+这正是你在上面实验室看到的**每步实际塑形奖励（Token-level Shaped Reward）**：
+
+$$
+r_t = \begin{cases}
+-\beta \log \dfrac{\pi_\theta(y_t \mid s_t)}{\pi_{\mathrm{ref}}(y_t \mid s_t)}, & t < T \\[10pt]
+R(x, y) - \beta \log \dfrac{\pi_\theta(y_T \mid s_T)}{\pi_{\mathrm{ref}}(y_T \mid s_T)}, & t = T
+\end{cases}
+$$
+
+<Callout type="info" title="KL 惩罚与第 9 章最大熵 SAC 的深层统一">
+  回想第 9.1 节的最大熵目标 $\mathbb{E}[R + \alpha \mathcal{H}(\pi)]$！因为
+  $-D_{\mathrm{KL}}(\pi \| \pi_{\mathrm{ref}}) = \mathcal{H}(\pi) + \mathbb{E}_{a \sim \pi}[\log \pi_{\mathrm{ref}}(a)]$，
+  大模型 RL 中的 KL 锚定其实就是把最大熵 RL 的“均匀先验”替换成了**“强大预训练语言模型先验 $\pi_{\mathrm{ref}}$”**！整套强化学习理论在这里完成了大一统。
 </Callout>
 
-## 核心知识点
+---
 
-- 状态 = 历史上下文前缀、动作 = 下一个词表 Token、转移 = 确定性拼接
-- 序列级稀疏奖励与超长动作空间 |V| ≈ 10⁵ 的挑战
-- 参考策略 π_ref 与 KL 惩罚项防止语言退化
-- 大模型后训练全景图：SFT → 偏好对齐 → 可验证强化推理
+## 4. 现代 LLM 后训练演进全景图
 
-## 规划交互
+为什么大语言模型不能只靠监督微调（SFT）而必须引入强化学习？核心差距在于**“模仿专家标准答案” vs “从成败后果中自主学会权衡与反思”**：
 
-- **`<TokenMDPSimulator />`**：Token 级 MDP 生成透视器：逐 token 推进数学解题生成，展示每一步 Top-5 词表动作概率条、采样选择、单步 KL 散度与终局稀疏奖励
+- **阶段 0：预训练（Pre-training）**——吃下互联网海量语料，获得强大的世界模型与语言能力（Base Model），但还不会按人类意图对话。
+- **阶段 1：监督微调（SFT）**——用高质量指令-回答对做行为克隆（模仿学习），让模型学会对话格式，但上限受限于标注员水平，且存在暴露偏差（Exposure Bias）。
+- **阶段 2：人类偏好对齐（RLHF / DPO）**——当“好回答”难以写出唯一标准答案、但人类很容易比较“A 比 B 更好”时，通过成对偏好信号把模型对齐到 Helpful、Harmless、Honest。
+- **阶段 3：可验证强化推理（RLVR / GRPO，代表作 OpenAI o1 & DeepSeek-R1）**——在数学证明、代码编译、形式化验证等存在**客观真值判别器**的领域，直接用纯粹的规则正确性奖励驱动大规模 RL，让模型自发涌现长思维链、回溯验算与自我纠错！
 
-## 规划动效
+---
 
-- 🎬 **`llm-token-stream`**：现代 AI 终端与 Token 流矩阵风：Prompt 逐格喷射生成 Token 序列，顶部同步跳动词表动作概率直方图与 KL 散度仪表
+<QuizBox
+  questions={[
+    {
+      question: '把自回归大语言模型建模为 Token 级 MDP 时，状态转移概率 P(s_{t+1} | s_t, a_t) 具有什么特殊性质？',
+      options: [
+        '高度随机，取决于 GPU 温度和采样种子',
+        '完全确定性：选定动作 Token a_t 后，下一个状态必然是前缀拼接 s_t ⊕ a_t',
+        '必须通过蒙特卡洛树搜索才能估计转移概率',
+        '状态维度固定不变，与生成长度无关',
+      ],
+      answerIndex: 1,
+      explanation: '采样动作 a_t 的过程本身由随机策略 π_θ 决定，但一旦动作 Token 选定，环境状态转移仅仅是把该 Token 拼接到上下文末尾，转移概率严格等于 1。',
+    },
+    {
+      question: '在 LLM 的 RL 训练中，向目标函数加入 -β D_KL(π_θ || π_ref) 项的核心作用是什么？',
+      options: [
+        '加速模型遗忘预训练知识，以腾出参数容量',
+        '充当“语言安全带”，约束新策略不要偏离参考模型太远，防止语言退化与奖励黑客',
+        '把稀疏的终局奖励直接变成真实的每步语义正确性打分',
+        '彻底消除自回归推理过程中的显存占用',
+      ],
+      answerIndex: 1,
+      explanation: 'KL 惩罚将新策略锚定在具备流畅语言与广博知识的参考策略 π_ref 附近，避免策略为刷高代理奖励而吐出乱码或讨好废话。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：10.2 RLHF 三阶段架构与奖励黑客" href="/docs/10-rl-for-llm/02-rlhf-and-reward-hacking" />
+  <Card title="下一节：10.2 RLHF 三阶段架构与奖励黑客" href="/docs/10-rl-for-llm/02-rlhf-and-reward-hacking" description="拆解 InstructGPT/ChatGPT 的四大模型协同数据流，并亲手在沙盒中触发与驯服 Reward Hacking。" />
+  <Card title="回顾：8.4 PPO-Clip 深度详解" href="/docs/08-policy-gradient-ppo/04-ppo-deep-dive" description="复习 PPO 截断目标函数，它是经典 RLHF 与现代 GRPO 的共同心脏。" />
 </Cards>

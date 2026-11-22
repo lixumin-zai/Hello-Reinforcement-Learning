@@ -1,34 +1,185 @@
 ---
-title: '10.4 GRPO、RLVR 与 RL 工程调试全景清单'
-description: '揭秘 DeepSeek-R1 如何用组内相对优势省掉 Critic 激发长思维链，附完整 PyTorch/TRL 代码与训练异常曲线诊断室。'
-icon: 'Lightbulb'
+title: 10.4 GRPO、RLVR 与 RL 工程调试全景清单
+description: 揭秘 DeepSeek-R1 如何用组内相对优势省掉 Critic 激发长思维链，附完整 PyTorch/TRL 代码与训练异常曲线诊断室。
+icon: Lightbulb
 ---
 
-import { Callout } from 'fumadocs-ui/components/callout';
-import { Cards, Card } from 'fumadocs-ui/components/card';
+import { GRPOGroupLab } from '@/components/docs/10-rl-for-llm/GRPOGroupLab';
+import { RLCurveDoctor } from '@/components/docs/10-rl-for-llm/RLCurveDoctor';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={5}
+  time="25 分钟"
+  prereqs={['8.4 PPO-Clip', '10.2 RLHF 四大模型', '10.3 DPO']}
+  goals={[
+    '理解可验证奖励强化学习 (RLVR) 如何用客观规则判别器根治神经 RM 的奖励黑客',
+    '掌握 GRPO 组采样相对优势 Â_i = (r_i - μ)/σ 如何砍掉 Critic 省去半数显存',
+    '认识 DeepSeek-R1 “顿悟时刻 (Aha Moment)” 的 RL 机制与 σ = 0 零梯度边界（DAPO/Dr.GRPO 改进）',
+    '带走一份可直接复用的 PyTorch GRPO 损失实现与 5 大 RL 训练异常曲线诊断处方',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★★ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 从“讨好人类”到“真会推理”：RLVR 的范式跃迁
+
+回顾前两节你会发现一个有趣的悖论：无论是 RLHF 还是 DPO，天花板都卡在**人类偏好数据或代理奖励模型 $r_\psi$** 上——模型很容易学会把话说得漂亮工整，却很难在复杂数学证明、竞赛编程中突破人类标注员的智力上限。
+
+2024–2025 年（OpenAI o1、DeepSeek-R1）引爆的新范式被称为 **RLVR（Reinforcement Learning with Verifiable Rewards，可验证奖励强化学习）**：
+
+- **不再训练脆弱的神经 Reward Model**，也不需要标注每一步推理对错；
+- 只聚焦于**结果可被确定性程序校验**的任务：数学题比对最终 `\boxed{答案}` 符号等价性、代码题跑隐藏单元测试用例、逻辑题跑 SAT/形式化校验器；
+- 外加一项轻量级的**格式奖励**（如要求把思考放进 `<think>...</think>` 内）。
+
+因为验证器是刚性的客观法则，策略再怎么花言巧语、凑字数拍马屁也拿不到 1 分——**唯一能持续涨分的出路，就是老老实实学会拆分问题、试错回溯、自我验算！**
+
+---
+
+## 2. GRPO：用“同题组内比拼”彻底干掉 Critic 网络
+
+既然要做大规模在线 RL 探索，为什么 DeepSeekMath 与 DeepSeek-R1 没有直接用经典 PPO，而是提出了 **GRPO（Group Relative Policy Optimization，组相对策略优化）**？
+
+回顾 10.2 节：经典 PPO 需要维护一个跟 Actor 一样庞大的 **Critic 价值网络 $V_\phi$**，仅仅是为了给每个动作提供一个降方差的基线（Baseline）。而在长思维链推理中，动辄生成 8,000+ Token 才在末尾给出一个 `0` 或 `1` 的二值奖励，训练一个精准的逐 Token 价值网既耗费近一半显存，又极难拟合。
+
+**GRPO 的解法简单得令人拍案叫绝**：
+
+1. 对同一个题目 $q$，用旧策略 $\pi_{\theta_{\mathrm{old}}}$ 并行采样一组共 $G$ 条完整回答 $\{o_1, o_2, \dots, o_G\}$；
+2. 用规则验证器给每条回答打分 $\{r_1, r_2, \dots, r_G\}$；
+3. **直接把这组回答的平均分 $\mu$ 当作基线、标准差 $\sigma$ 当作尺度**，算出每条回答的**组内相对优势（Group Relative Advantage）**：
+
+$$
+\hat{A}_i = \frac{r_i - \operatorname{mean}(\{r_1, \dots, r_G\})}{\operatorname{std}(\{r_1, \dots, r_G\}) + \varepsilon_{\mathrm{std}}}
+$$
+
+同一条回答 $o_i$ 中的每一个 Token $t$ 共享同一个序列相对优势 $\hat{A}_{i,t} = \hat{A}_i$！将它代入我们早已烂熟于心的 PPO-Clip 框架，并直接加上无偏非负的 Schulman KL 估计项，即得完整的 **GRPO 目标函数**：
+
+$$
+\mathcal{J}_{\mathrm{GRPO}}(\theta) = \mathbb{E}_{q,\; \{o_i\}_{i=1}^G \sim \pi_{\theta_{\mathrm{old}}}}\!\left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \left( \min\!\Big( \rho_{i,t}\hat{A}_i,\; \operatorname{clip}(\rho_{i,t}, 1-\epsilon, 1+\epsilon)\hat{A}_i \Big) - \beta\, \mathbb{D}_{\mathrm{KL}}(\pi_\theta \| \pi_{\mathrm{ref}}) \right) \right]
+$$
+
+其中概率比 $\rho_{i,t} = \dfrac{\pi_\theta(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta_{\mathrm{old}}}(o_{i,t} \mid q, o_{i,<t})}$，KL 散度采用保证非负且低方差的 $k_3$ 估计子：
+
+$$
+\mathbb{D}_{\mathrm{KL}}(\pi_\theta \| \pi_{\mathrm{ref}}) = \frac{\pi_{\mathrm{ref}}(o_{i,t} \mid s_{i,t})}{\pi_\theta(o_{i,t} \mid s_{i,t})} - \log \frac{\pi_{\mathrm{ref}}(o_{i,t} \mid s_{i,t})}{\pi_\theta(o_{i,t} \mid s_{i,t})} - 1 \;\ge\; 0
+$$
+
+<MotionPlayer id="grpo-laser-verify" />
+
+---
+
+## 3. 交互实验：GRPO 组采样台与 $\sigma = 0$ 陷阱
+
+点击下方每条思维链的正确/格式徽章，或者直接按下 **「全对 (σ=0)」 / 「全错 (σ=0)」** 预设，亲眼见证相对优势条的动态变化与 GRPO 最著名的工程边界：
+
+<GRPOGroupLab />
+
+<Callout type="tip" title="什么是 DeepSeek-R1 的“顿悟时刻 (Aha Moment)”与后续改进？">
+  在 DeepSeek-R1-Zero 的纯 RL 训练中，研究者并没有教模型写“等等，让我重新检查一下这一步”。但随着训练步数推进，当模型偶然在某条 Rollout 里多花了几十个 Token 复盘纠错从而拿到 `r = 1.0` 时，它的相对优势 $\hat{A}_i > 0$ 立刻被强化放大——**长思考、自我反思、分情况讨论就这样在纯粹的试错演化中自发涌现**！
+  
+  同时，后续研究（如 **DAPO**、**Dr.GRPO**）针对原始 GRPO 提出了三大精妙修复：① **Dynamic Sampling** 过滤掉全对/全错（$\sigma=0$）的无效题组；② **Clip-Higher**（如 $\epsilon_{\mathrm{high}} = 0.28 > \epsilon_{\mathrm{low}} = 0.20$）防止低概率探索词被过早截断导致熵塌缩；③ 去掉除以长度 $|o_i|$ 和除以 $\sigma$ 带来的长度/难度偏置。
 </Callout>
 
-## 核心知识点
+---
 
-- 可验证奖励 (RLVR) 规避神经 RM 的奖励黑客
-- GRPO 组采样与相对优势 Â_i = (r_i - μ) / σ 省去半数显存
-- “顿悟时刻 (Aha Moment)”与长思维链的自发涌现
-- 完整 TRL / PyTorch GRPO 实战代码 + RL 训练异常曲线排查手册
+## 4. 完整可运行的 PyTorch GRPO 核心损失代码
 
-## 规划交互
+下面这段干净、无黑盒封装的 PyTorch 实现展示了生产级 GRPO 损失函数的全部关键数值细节（FP32 防溢出、掩码求和、Schulman 非负 KL）：
 
-- **`<GRPOGroupLab />`**：GRPO 组采样实战台：自定义 G=4~8 条数学推理链的正确率与格式得分，实时计算组均值/标准差、相对优势条与全对/全错时方差归零边界
-- **`<RLCurveDoctor />`**：RL 训练异常曲线诊断室：选择 5 种经典翻车曲线（熵塌缩 / KL 爆炸 / Value 过拟合 / 奖励黑客 / 梯度爆炸），交互式展示根因与修复处方
+```python
+import torch
 
-## 规划动效
+def grpo_loss(
+    logp_new: torch.Tensor,   # [B*G, T] 当前策略 π_θ 逐 Token 对数概率 (FP32)
+    logp_old: torch.Tensor,   # [B*G, T] 采样策略 π_old 逐 Token 对数概率 (detach)
+    logp_ref: torch.Tensor,   # [B*G, T] 参考策略 π_ref 逐 Token 对数概率 (detach)
+    rewards: torch.Tensor,    # [B, G]   每组 G 条轨迹的规则验证器总分
+    mask: torch.Tensor,       # [B*G, T] 有效生成回复 Token 掩码 (不含 Prompt/Padding)
+    eps_low: float = 0.2,
+    eps_high: float = 0.28,   # DAPO Clip-Higher：为探索 Token 留更大上升空间
+    beta: float = 0.04,
+) -> tuple[torch.Tensor, dict[str, float]]:
+    # 1. 组内 Z-score 归一化计算相对优势 Â_i -> [B*G, 1]
+    mean_r = rewards.mean(dim=-1, keepdim=True)
+    std_r = rewards.std(dim=-1, keepdim=True, unbiased=False)
+    adv = ((rewards - mean_r) / (std_r + 1e-4)).reshape(-1, 1)
 
-- 🎬 **`grpo-laser-verify`**：AI 终端激光质检流水线风：同一题并行喷射 4 条 &lt;think&gt; 推理链 → 规则验证激光逐条打勾/打叉 → 组内归一化为红绿优势光谱 → 反向强化正确推理路径
+    # 2. 安全计算概率比 ρ = exp(log π_θ - log π_old)（防止 exp 溢出 NaN）
+    log_ratio = torch.clamp(logp_new - logp_old, min=-20.0, max=20.0)
+    ratio = torch.exp(log_ratio)
+
+    surr1 = ratio * adv
+    surr2 = torch.clamp(ratio, 1.0 - eps_low, 1.0 + eps_high) * adv
+    pg_loss_tok = -torch.min(surr1, surr2)
+
+    # 3. Schulman 无偏非负 KL 估计子 k3: exp(log_ref - log_new) - (log_ref - log_new) - 1
+    log_ref_diff = torch.clamp(logp_ref - logp_new, min=-20.0, max=20.0)
+    kl_tok = torch.exp(log_ref_diff) - log_ref_diff - 1.0
+
+    # 4. 仅在回复 Token 掩码上求均值
+    total_tok = pg_loss_tok + beta * kl_tok
+    seq_lens = mask.sum(dim=-1).clamp_min(1.0)
+    loss = ((total_tok * mask).sum(dim=-1) / seq_lens).mean()
+
+    metrics = {
+        "loss": loss.item(),
+        "mean_kl": ((kl_tok * mask).sum() / mask.sum().clamp_min(1.0)).item(),
+        "clip_frac": (((ratio < 1 - eps_low) | (ratio > 1 + eps_high)).float() * mask).sum().item()
+        / mask.sum().clamp_min(1.0).item(),
+        "zero_std_groups": (std_r.squeeze(-1) < 1e-5).float().mean().item(),
+    }
+    return loss, metrics
+```
+
+---
+
+## 5. 全教程压轴工具：RL 训练异常曲线诊断室
+
+无论你未来训练的是经典 PPO 机器人控制、DQN 游戏智能体，还是千亿参数大模型的 GRPO 推理训练，**90% 的真实调试时间都花在“盯着监控曲线排查为什么训崩了”**。把下面这 5 张高频故障病例存为你的随身诊断手册：
+
+<RLCurveDoctor />
+
+---
+
+## 6. 全书终章寄语：从老虎机到自主推理的闭环
+
+恭喜你走完了整套 **4 阶梯 · 10 章 · 34 节**强化学习全景交互教程！回头俯瞰我们一起走过的智力阶梯：
+
+1. **L1 探索直觉（第 1–2 章）**：你在迷雾寻宝与霓虹赌场里亲手感受到延迟信用分配与探索-利用权衡；
+2. **L2 经典算法核心（第 3–6 章）**：从马尔可夫性、Bellman 压缩映射、动态规划波前传播，一路走到蒙特卡洛二十一点牌桌与悬崖行走的 SARSA / Q-learning；
+3. **L3 深度强化学习（第 7–8 章）**：亲手开上山地车、顶起倒立摆，攻克了死亡三角、DQN 经验回放、策略梯度基线与 PPO 信赖域截断；
+4. **L4 规划与大模型后训练（第 9–10 章）**：透视了最大熵 SAC、Dyna 世界模型、MCTS 活体搜索树，最终把全部经典 RL 智慧收束到当今最前沿的 RLHF、DPO 闭式推导与 DeepSeek-R1 背后的 GRPO！
+
+真正的掌握始于动手——去 [RL 交互沙盒](/app) 或 [Remotion 动效工作台](/motion) 再把你最喜欢的算法重演一遍，或者直接克隆本仓库用 PyTorch 跑起你的第一个强化学习智能体吧！
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '相比经典 RLHF-PPO，GRPO 能够节省接近一半训练显存的最直接原因是什么？',
+      options: [
+        'GRPO 把词表大小压缩到了原来的 10%',
+        'GRPO 用同一 Prompt 并行采样 G 条回复的组均值与标准差直接估计相对优势 Â_i，彻底移除了与 Actor 同等庞大的 Critic 价值网络',
+        'GRPO 不需要计算梯度，只靠随机搜索权重',
+        'GRPO 在训练时冻结了 Actor 的全部参数',
+      ],
+      answerIndex: 1,
+      explanation: 'Critic 网络不仅与 Actor 尺寸相当，还必须保存全套梯度与 Adam 优化器状态；GRPO 用组统计量替代 Critic 基线，直接消除了整个训练态 Critic 的显存开销。',
+    },
+    {
+      question: '在 GRPO 训练中，如果某个简单数学题的 G 条采样回复全部做对（r_i 全等于 1.0），会发生什么？',
+      options: [
+        '模型会获得 G 倍的超大梯度迅速收敛',
+        '组标准差 σ = 0，所有样本的相对优势 Â_i 均为 0，该题组无法提供有效策略梯度（因此 DAPO 采用动态重采样过滤）',
+        'KL 散度会自动变为负无穷',
+        '会自动触发 Critic 网络的重新初始化',
+      ],
+      answerIndex: 1,
+      explanation: '全对或全错组的组内方差为零，无法区分哪条思考路径更好；保留这类样本只会白白浪费算力，动态采样（Dynamic Sampling）正是为此而生。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：回到目录" href="/docs" />
+  <Card title="前往 RL 交互沙盒" href="/app" description="在自由沙盒里自定义迷宫、悬崖与奖励，实时对比 DP、SARSA 与 Q-learning！" />
+  <Card title="浏览全部 24 支 Remotion 动效" href="/motion" description="一口气回顾覆盖 7 套专属视觉世界观的全部确定性强化学习动画！" />
+  <Card title="返回教程总览" href="/docs" description="查看 10 章 34 节完整路线图与全局符号速查表。" />
 </Cards>

@@ -6,24 +6,113 @@ icon: 'Bot'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { SACEntropyLab } from '@/components/docs/09-control-and-planning/SACEntropyLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="22 分钟"
+  prereqs={['第 7 章 DQN', '第 8 章 Actor-Critic 与策略梯度']}
+  goals={[
+    '掌握连续动作空间下的「确定性策略梯度 (DPG / DDPG)」与「重参数化技巧」',
+    '吃透 TD3 修复 DDPG 脆弱性的三大神技（双 Critic 取 min / 延迟更新 / 目标平滑）',
+    '理解最大熵强化学习 (SAC) 的软贝尔曼目标及温度系数 α 如何赋予策略多峰鲁棒性',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. 当动作变成连续实数向量：从 DDPG 到 TD3 三板斧
 
-## 核心知识点
+在人形机器人、四足狗、机械臂抓取或无人机控制中，动作 $a \in \mathbb{R}^m$ 是连续力矩向量。PPO 虽然能直接输出高斯策略 $\mathcal{N}(\mu_\theta(s), \sigma_\theta^2(s))$，但 PPO 是**在策略的**，样本效率偏低——如果在真机或高保真物理引擎里采集百万步代价太大，我们需要**离策略（能复用经验回放池）的连续控制算法**！
 
-- 高斯策略、重参数化技巧与 tanh 有界动作的雅可比修正
-- DDPG 与 TD3 三板斧（双 Critic 取 min / 延迟策略更新 / 目标策略平滑）
-- 最大熵强化学习目标与软贝尔曼方程
-- SAC 算法流程与自动温度 α 调节
+### ① DDPG（Deep Deterministic Policy Gradient, Lillicrap et al., 2015）
 
-## 规划交互
+既然无法对连续动作做 $\arg\max_a Q_\phi(s, a)$，那就专门训一个**确定性 Actor 网络 $\mu_\theta(s)$** 去近似这个 $\arg\max$！沿着 Critic 对动作的梯度 $\nabla_a Q_\phi(s, a)$ 链式反传更新 Actor：
 
-- **`<SACEntropyLab />`**：最大熵 SAC 多峰分布实验室：在双峰连续奖励曲面上调节温度 α，观察策略从坍缩到单一峰平滑转变为双峰鲁棒覆盖，兼看双 Critic 取 min 抑制高估
+$$
+\nabla_\theta J(\theta) \;=\; \mathbb{E}_{s \sim \mathcal{D}}\Big[\,\nabla_a Q_\phi(s, a)\big|_{a=\mu_\theta(s)}\; \nabla_\theta \mu_\theta(s)\,\Big]
+$$
+
+### ② TD3（Twin Delayed DDPG, Fujimoto et al., 2018）：三大精准手术
+
+DDPG 对超参数极其敏感、经常训练崩盘，TD3 用三板斧彻底治好了它：
+1. **双 Critic 截断（Clipped Double Q-Learning）**：训练两套独立 Critic $Q_{\phi_1}, Q_{\phi_2}$，计算 TD 目标时**取较小值 $\min_{i=1,2} Q_{\phi_i^-}(s', \tilde{a}')$**，彻底根治连续空间里的 Q 值过估计爆炸；
+2. **延迟策略更新（Delayed Policy Updates）**：Critic 更新 2 步，Actor 和目标网络才更新 1 步——先让裁判估准分，再让演员改动作；
+3. **目标策略平滑（Target Policy Smoothing）**：在目标动作上加截断高斯噪声 $\tilde{a}' = \text{clip}\big(\mu_{\theta^-}(s') + \text{clip}(\epsilon, -c, c),\, a_{\min}, a_{\max}\big)$，防止 Actor 钻 Critic 尖锐过拟合峰值的空子！
+
+---
+
+## 2. 最大熵强化学习（SAC）：既要拿高分，又要保持动作多样性！
+
+标准 RL 只追求期望总奖励最大化；**SAC（Soft Actor-Critic, Haarnoja et al., 2018）**在目标里显式加入**策略熵 $\mathcal{H}(\pi(\cdot\mid s))$**，追求“在拿到高分的同时，行为尽可能保持最大随机多样性”：
+
+$$
+J(\pi) \;=\; \sum_{t=0}^{T} \mathbb{E}_{(s_t, a_t) \sim \rho_\pi}\Big[\, r(s_t, a_t) \;+\; \alpha \, \mathcal{H}\big(\pi(\cdot \mid s_t)\big) \,\Big]
+$$
+
+其中 **温度系数 $\alpha > 0$** 控制熵奖励的权重（现代 SAC 甚至把 $\alpha$ 变成自动可学习参数，通过约束平均熵维持在目标熵 $-\dim(\mathcal{A})$ 附近来自动调温！）。
+
+### 为什么最大熵策略在机器人控制里如此强悍？
+
+1. **天然多峰探索**：面对左右两条同样通往目标的走廊，传统贪心策略会彻底坍缩到某一条，一旦那条路被障碍挡住立刻死机；最大熵 SAC 同时覆盖两条路，遇阻瞬间切换！
+2. **重参数化技巧（Reparameterization Trick）**：为了对随机采样 $a = \tanh(\mu_\theta(s) + \sigma_\theta(s) \odot \epsilon)$（$\epsilon \sim \mathcal{N}(0, I)$）直接求低方差路径导数，SAC 将随机性挪到外部输入 $\epsilon$，同时用雅可比行列式精确修正 $\tanh$ 压缩边界后的对数概率密度：
+   $$
+   \log \pi(a \mid s) = \log \mu(u \mid s) - \sum_{i=1}^{m} \log\big(1 - \tanh^2(u_i)\big)
+   $$
+
+### 🌊 交互实验：调节 SAC 温度 $\alpha$ 与双 Critic 悲观下界
+
+<SACEntropyLab />
+
+---
+
+## 3. 软贝尔曼方程与自动温度调节 $\alpha$
+
+在最大熵框架下，状态价值 $V(s)$ 与动作价值 $Q(s, a)$ 变成了带有熵奖励的**软价值函数（Soft Value Functions）**：
+
+$$
+V(s_t) = \mathbb{E}_{a_t \sim \pi}\!\Big[\, Q(s_t, a_t) - \alpha \log \pi(a_t \mid s_t) \,\Big]
+$$
+
+对应的**软贝尔曼备份目标**（结合 TD3 的双 Critic 取最小防过估计）为：
+
+$$
+y = r + \gamma (1 - d) \left( \min_{i=1,2} Q_{\phi_i^-}(s', \tilde{a}') - \alpha \log \pi_\theta(\tilde{a}' \mid s') \right), \qquad \tilde{a}' \sim \pi_\theta(\cdot \mid s')
+$$
+
+早期 SAC 最让人头疼的是温度 $\alpha$ 对不同环境尺度极度敏感。SAC-v2 引入了极其优雅的**拉格朗日对偶自动调温**：设定目标最小熵 $\bar{\mathcal{H}} = -\dim(\mathcal{A})$，对 $\log \alpha$ 直接做梯度下降：
+
+$$
+\mathcal{L}(\alpha) = \mathbb{E}_{a_t \sim \pi_\theta}\!\Big[\, -\alpha \big(\log \pi_\theta(a_t \mid s_t) + \bar{\mathcal{H}}\big) \,\Big]
+$$
+
+当策略过于保守（当前熵低于 $\bar{\mathcal{H}}$）时自动调高 $\alpha$ 鼓励探索；当策略过于混乱（熵过高）时自动调低 $\alpha$ 精细收敛。
+
+### 连续控制三大算法选型速查
+
+| 算法 | 策略类型 | 核心机制 | 样本效率 | 典型适用场景 |
+| :--- | :--- | :--- | :--- | :--- |
+| **PPO** | 在策略随机高斯 | Clip 截断代理目标 | 中偏低 | 大规模并行 GPU 物理仿真（Isaac Gym / 人形机器人走路） |
+| **TD3** | 离策略确定性 | 双 Critic 取 min + 延迟更新 + 平滑噪声 | 高 | 对动作平滑度要求高、单峰明确的连续控制 |
+| **SAC** | 离策略最大熵随机 | 双 Critic 取 min + 重参数化 + 自动调温 $\alpha$ | **极高** | 真机机械臂抓取、多路径鲁棒控制、默认首选连续控制基线 |
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: 'TD3 和 SAC 为什么都维护两套独立的 Critic 网络 Q_{φ1}, Q_{φ2} 并在计算 TD 目标时取 min(Q_{φ1}, Q_{φ2})？',
+      options: ['为了把显存占满', '因为 Actor 会拼命寻找 Critic 估计值虚高的动作漏洞，取两个独立 Critic 的最小值形成悲观下界，有效抑制连续控制中的 Q 值高估爆炸', '因为需要同时预测两个不同的动作', '为了消除折扣因子 γ'],
+      answerIndex: 1,
+      explanation: '这是 6.3 节 Double Q 思想在连续动作空间里的强化版：取 min 引入微小保守低估，换来极佳的训练稳定性。',
+    },
+    {
+      question: 'SAC 通过重参数化技巧采样有界动作 a = tanh(μ + σ ⊙ ε) 后，为什么对数概率必须减去 Σ log(1 - tanh²(u_i))？',
+      options: ['为了把奖励放大一倍', 'tanh 非线性变换压缩了接近 ±1 边界处的概率体积，按变量替换雅可比行列式法则必须做密度修正，否则策略熵计算会严重失真', '因为 PyTorch 不支持直接对高斯求导', '为了强行让动作恒等于 0'],
+      answerIndex: 1,
+      explanation: '概率密度在可逆非线性映射 y = f(x) 下遵循 p_Y(y) = p_X(x) |det(df/dx)|^{-1}，而 d(tanh u)/du = 1 - tanh²(u)。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：9.2 基于模型的 RL：Dyna-Q 与 Dreamer 世界模型" href="/docs/09-control-and-planning/02-dyna-and-world-models" />
+  <Card title="下一节：9.2 基于模型的 RL：Dyna-Q 与 Dreamer 世界模型" href="/docs/09-control-and-planning/02-dyna-and-world-models" description="在迷宫里亲眼对比脑内想象规划 n=0 vs n=25 如何让样本效率飙升 5 倍！" />
 </Cards>
