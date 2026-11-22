@@ -6,28 +6,161 @@ icon: 'Dices'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { BanditCasinoGame } from '@/components/docs/02-bandits/BanditCasinoGame';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={2}
+  time="20 分钟"
+  prereqs={['1.1 试错学习', '期望与条件概率']}
+  goals={[
+    '亲手与 4 个经典 RL 算法同台竞技，切身体会探索与利用的博弈张力',
+    '从零推导出 O(1) 增量样本均值更新公式（后续全书所有更新式的原型）',
+    '严格理解累积遗憾 Regret(T) 以及纯贪心为何必然掉入局部最优陷阱',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★☆☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 先上场打一局：你能跑赢 4 个 RL 算法吗？
+
+假设你走进一座霓虹闪烁的复古赌场，面前摆着 **5 台外观不同但隐藏胜率未知的老虎机**。你手里只有 **30 枚（或 50 枚）代币**，每拉一次消耗 1 枚，中奖就能赢回筹码。
+
+别急着往下看公式！请先直接用鼠标点击（或按键盘数字键 `1`–`5`）亲手玩完一局，**看看你在终局结算战报里能不能打败后台同场竞技的 UCB1 和 Thompson Sampling**！玩完经典模式后，强烈建议再切换一次 **「🌪️ 非平稳漂移赌场」** 体验第 25 轮暗中洗牌的震撼：
+
+<BanditCasinoGame />
+
+---
+
+## 2. $k$ 臂老虎机的数学形式化
+
+你刚才玩的赌场游戏，就是强化学习中最著名的入门模型——**$k$ 臂老虎机（$k$-Armed Bandit）**。它等价于一个**只有 1 个状态、动作不会改变环境状态**的极简决策问题：
+
+- 在每个时刻 $t = 1, 2, \dots, T$，智能体从 $k$ 个动作中选出一个 $A_t \in \{1, 2, \dots, k\}$；
+- 环境从对应臂的未知奖励分布 $p(r \mid A_t)$ 中独立采样出一个随机奖励 $R_t$；
+- 我们把动作 $a$ 隐藏的真实期望奖励定义为它的**真实价值（True Action Value）**：
+  $$
+  q_*(a) \doteq \mathbb{E}\big[R_t \;\big|\; A_t = a\big]
+  $$
+- 记全局最优动作及其期望收益为：
+  $$
+  a^* \doteq \arg\max_{a \in \{1,\dots,k\}} q_*(a), \qquad v^* \doteq q_*(a^*)
+  $$
+
+如果上帝直接把 $q_*(a)$ 抄给你，问题瞬间毫无悬念——每一步都拉 $a^*$ 即可。真正的挑战在于 **$q_*(a)$ 是隐藏的**，你只能凭历史拉杆结果维护一个估计值 $Q_t(a)$。
+
+---
+
+## 3. 为什么纯贪心会翻车？电影视角回放陷阱
+
+在刚才的游戏里，如果你把前两台拉出中奖的机台一直点到底、剩下的机台碰都不碰，你就变成了**纯贪心策略（Greedy Policy, $\varepsilon = 0$）**。观看下方复古街机动画，看看纯贪心是如何因为“开局倒霉一抽”永久错失 78% 黄金机台的：
+
+<MotionPlayer id="bandit-arcade-trap" />
+
+---
+
+## 4. 逐行推导：$O(1)$ 增量样本均值公式（全书最重要公式原型）
+
+假设到目前为止，动作 $a$ 已经被拉动了 $n-1$ 次，获得的奖励依次为 $R_1, R_2, \dots, R_{n-1}$，其样本均值估计记为 $Q_n$。现在我们又拉了第 $n$ 次，得到新奖励 $R_n$。难道我们必须把过去几百万条历史奖励全存进内存重新求和吗？完全不需要！
+
+把第 $n+1$ 个估计 $Q_{n+1}$ 展开拆分：
+
+$$
+\begin{aligned}
+Q_{n+1} &= \frac{1}{n} \sum_{i=1}^{n} R_i \\
+&= \frac{1}{n} \left( R_n + \sum_{i=1}^{n-1} R_i \right) \\
+&= \frac{1}{n} \Big( R_n + (n - 1) Q_n \Big) \qquad \text{（因为 } \sum_{i=1}^{n-1} R_i = (n-1) Q_n \text{）} \\
+&= \frac{1}{n} \Big( R_n + n Q_n - Q_n \Big) \\
+&= Q_n + \frac{1}{n}\Big[\, R_n - Q_n \,\Big]
+\end{aligned}
+$$
+
+**停下来欣赏 5 秒钟这个极其优美的结论！**
+
+$$
+\underbrace{Q_{n+1}}_{\text{新估计}} \;\leftarrow\; \underbrace{Q_n}_{\text{旧估计}} \;+\; \underbrace{\frac{1}{n}}_{\text{步长 StepSize}} \Big[\,\underbrace{R_n}_{\text{目标 Target}} - \underbrace{Q_n}_{\text{旧估计}}\,\Big]
+$$
+
+- **只需保存两个数**：当前均值 $Q_n$ 与计数 $n$，内存与时间复杂度骤降至 **$O(1)$**；
+- **手算演练**：假设 3 号机前 4 次拉出 `[1, 0, 1, 1]`，则 $Q_5 = 3/4 = 0.75$。第 5 次拉出 $R_5 = 0$，直接套公式：
+  $$
+  Q_6 = 0.75 + \frac{1}{5}(0 - 0.75) = 0.75 - 0.15 = 0.60
+  $$
+  恰好等于 $(1+0+1+1+0)/5 = 0.60$！
+
+<Callout type="important" title="全书伏笔：Target - OldEstimate">
+  括号里的 $(R_n - Q_n)$ 就是**预测误差**：如果新观察到的奖励比你原先猜的高，估计值就往上调；比猜的低，就往下调。后面第 5 章蒙特卡洛、第 6 章 TD 误差 $\delta_t$、第 7 章 DQN，全都继承了这同一个骨架！
 </Callout>
 
-## 核心知识点
+---
 
-- k 臂老虎机问题形式化与真实期望 q*(a)
-- 样本均值与 O(1) 增量更新公式完整推导
-- 累积遗憾 Regret(T) 与纯贪心锁死机制
-- 人类直觉 vs 最优探索算法的实战对比
+## 5. 如何科学评判谁玩得更好？累积遗憾（Cumulative Regret）
 
-## 规划交互
+单看某一次 30 轮的总筹码会受随机运气影响。在理论分析中，衡量一个探索策略优劣的金标准是 **$T$ 轮内的累积遗憾（Cumulative Regret）**：
 
-- **`<BanditCasinoGame />`**：完整小游戏《霓虹赌场：人机 50 轮争霸赛》：5 台带滚轮动画/拉杆/金币特效的老虎机，支持高斯/伯努利/非平稳漂移模式，4 个 AI 同种子陪跑并生成 Regret 排行榜与复盘报告
+$$
+\text{Regret}(T) \doteq \sum_{t=1}^{T} \big(v^* - q_*(A_t)\big) = \sum_{a=1}^{k} \Delta_a \cdot \mathbb{E}\big[N_T(a)\big]
+$$
 
-## 规划动效
+其中 $\Delta_a \doteq v^* - q_*(a) \ge 0$ 表示选到次优臂 $a$ 时每一轮白白亏掉的**期望机会成本**。
 
-- 🎬 **`bandit-arcade-trap`**：复古街机物理机台风：多台老虎机摇杆下压、滚轮停帧、筹码跳出，镜头推近揭示纯贪心如何因开局倒霉永久错过黄金 3 号机
+- **纯贪心 ($\varepsilon = 0$)**：有非零概率永久锁死在次优臂上，导致 $\text{Regret}(T) = \Theta(T)$（**线性增长**，越玩亏越多）；
+- **固定 $\varepsilon$-greedy**：因为每轮总有 $\varepsilon$ 概率乱点次优臂，遗憾同样是线性的 $\Theta(T)$（只是斜率小得多）；
+- **最优探索算法（UCB / Thompson Sampling）**：能将总遗憾压缩到 **对数级 $O(\ln T)$**——随着轮次增加，遗憾曲线越来越平，逼近全知全能的上帝策略！
+
+---
+
+## 6. 可运行 Python 最小老虎机框架
+
+```python
+import numpy as np
+
+class BernoulliBandit:
+    def __init__(self, probs, seed=42):
+        self.probs = np.array(probs, dtype=float)
+        self.k = len(probs)
+        self.best_prob = float(np.max(self.probs))
+        self.rng = np.random.default_rng(seed)
+
+    def pull(self, action: int) -> float:
+        return 1.0 if self.rng.random() < self.probs[action] else 0.0
+
+def run_greedy(env: BernoulliBandit, steps: int = 50):
+    Q = np.zeros(env.k)
+    N = np.zeros(env.k, dtype=int)
+    regrets, cum_regret = [], 0.0
+
+    for _ in range(steps):
+        # 纯贪心：永远选当前 Q 最大的动作（并列时取第一个）
+        action = int(np.argmax(Q))
+        reward = env.pull(action)
+        N[action] += 1
+        Q[action] += (reward - Q[action]) / N[action]   # O(1) 增量更新
+        cum_regret += env.best_prob - env.probs[action]
+        regrets.append(cum_regret)
+    return Q, N, regrets
+
+env = BernoulliBandit([0.42, 0.25, 0.78, 0.55])
+Q, N, regrets = run_greedy(env, steps=200)
+print("各臂拉动次数:", N, "最终累积遗憾:", round(regrets[-1], 2))
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 5 台老虎机环境中，如果某台机台的真实胜率最高 (0.80)，但第 1 次拉动它时运气不好返回了 0，而第 2 台机台 (真实胜率 0.45) 第 1 次拉动返回了 1。初始 Q₀ 全为 0 的纯贪心算法接下来会怎么选？',
+      options: ['交替尝试其余 3 台机台', '一直拉动第 2 台机台，直到第 2 台的均值跌到 0 以下（对 0/1 伯努利奖励这永远不可能发生）', '等 10 轮后自动回到第 1 台机台', '随机选择一台机台'],
+      answerIndex: 1,
+      explanation: '伯努利奖励非负，只要第 2 台机台第一轮中过一次 1，它的样本均值 Q₂ 就永远严格大于 0，而其余未试过或首轮返回 0 的机台 Q=0，纯贪心将永远锁死在第 2 台！',
+    },
+    {
+      question: '关于增量更新公式 Q_{n+1} = Q_n + (1/n)(R_n - Q_n)，以下说法哪项正确？',
+      options: ['它只是近似样本均值，存在微小截断误差', '它在数学上与前 n 次奖励的算术平均严格等价，且空间复杂度为 O(1)', '当 n 越来越大时，新观测 R_n 的权重会越来越大', '它只适用于伯努利 0/1 奖励'],
+      answerIndex: 1,
+      explanation: '它是精确的代数恒等变形，适用于任何实数奖励分布；但随着 n 增大步长 1/n 趋近于 0，因此只适合真实均值不变的「平稳」环境。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：2.2 ε-贪心、乐观初值与非平稳环境追踪" href="/docs/02-bandits/02-epsilon-and-nonstationary" />
+  <Card title="下一节：2.2 ε-贪心、乐观初值与非平稳环境追踪" href="/docs/02-bandits/02-epsilon-and-nonstationary" description="如何打破贪心锁死？当赌场在第 25 轮暗中改赔率时，常数步长 α 如何救场？" />
 </Cards>

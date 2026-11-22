@@ -6,28 +6,164 @@ icon: 'Shuffle'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { BanditStrategyRace } from '@/components/docs/02-bandits/BanditStrategyRace';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={2}
+  time="18 分钟"
+  prereqs={['2.1 增量更新与累积遗憾']}
+  goals={[
+    '掌握 ε-贪心与衰减 ε 策略，理解探索率大小对短期/长期收益的权衡',
+    '看懂「乐观初始值」为何能在 ε=0 下自动逼迫智能体遍访所有动作',
+    '从代数展开推导出非平稳环境下的「指数近因加权平均」公式',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★☆☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. $\varepsilon$-贪心：最朴素但经久不衰的破局之道
+
+上一节我们看到，纯贪心之所以锁死，是因为它**永远不给落后臂翻身的机会**。修复它最直接的办法就是在每一步投掷一枚偏置硬币：
+
+- 以概率 $1 - \varepsilon$ **利用（Exploit）**：选择当前估计最高的动作 $\arg\max_a Q_t(a)$；
+- 以概率 $\varepsilon$ **探索（Explore）**：无视估计值，从所有 $k$ 个动作中均匀随机挑一个尝试。
+
+因此每个动作被选中的精确概率为：
+
+$$
+\pi_t(a) = \begin{cases}
+1 - \varepsilon + \dfrac{\varepsilon}{k}, & \text{若 } a = \arg\max_{a'} Q_t(a') \\[8pt]
+\dfrac{\varepsilon}{k}, & \text{其他 } k-1 \text{ 个动作}
+\end{cases}
+$$
+
+- **大 $\varepsilon$（如 $0.1$）**：前期发现最优臂极快，但后期即使已经 100% 确定最优臂了，仍然每 10 轮就会浪费 1 轮去乱点垃圾机台，最优动作率上限被封死在 $1 - \varepsilon + \varepsilon/k$；
+- **小 $\varepsilon$（如 $0.01$）**：前期摸索慢如蜗牛，但在很长的周期里后期天花板更高；
+- **衰减 $\varepsilon_t$**（如 $\varepsilon_t = \min(1, c / t)$）：试图兼得两者——前期大胆探索、后期收敛到纯利用，但**一旦进入非平稳环境，$\varepsilon_t \to 0$ 又会重新变瞎**！
+
+### 🎬 Remotion 动作讲解：$\varepsilon$-贪心双通道分流 × 非平稳指数遗忘
+
+<MotionPlayer id="epsilon-coin-split" />
+
+---
+
+## 2. 乐观初始值（Optimistic Initial Values）：不用掷骰子的“心理战术”
+
+还有一种令人拍案叫绝的探索技巧：**即使把 $\varepsilon$ 设成 $0$（纯贪心），也能让智能体把所有机台全都试一遍！**
+
+做法简单到不可思议：假设 10 台高斯老虎机的真实均值都在 $0$ 附近（例如 $\mathcal{N}(0, 1)$），我们故意在开局时给所有机台填上一个**荒谬地乐观的初始估计值**，比如：
+
+$$
+Q_1(a) = +5.0 \qquad (\forall a = 1, \dots, k)
+$$
+
+接下来发生的事情极具戏剧性：
+1. 智能体随便挑了 1 号机，拿到了真实奖励 $R_1 \approx 0.4$——**远低于它狂妄的预期 $+5.0$！**
+2. 更新后 $Q(1)$ 掉到了 $4.54$，智能体对 1 号机“感到失望”，下一轮立刻转向还保持着 $+5.0$ 的 2 号机；
+3. 2 号机也让它“失望”了，于是它自动遍历 3 号、4 号……把 10 台机台在头几十轮内全部深挖了好几遍，最后才收敛到真正最好的机台！
+
+<Callout type="warn" title="乐观初值的两大工程局限">
+  1. **只是一次性的早期探索**：一旦所有机台的估计值都从 $+5$ 跌回真实水平附近，乐观效应彻底消失——如果第 25 轮赌场突然改了赔率（非平稳环境），乐观初值毫无察觉能力；
+  2. **需要预知奖励量级**：如果你不知道环境的最高奖励大概在什么范围，就很难合理设置“恰到好处的乐观值”。
 </Callout>
 
-## 核心知识点
+---
 
-- ε-贪心算法与 ε 衰减策略
-- 乐观初始值 (Optimistic Initial Values) 的隐式遍历原理
-- 非平稳环境与常数步长 α 的指数近因加权推导
-- 完整 Python / NumPy 实验代码
+## 3. 非平稳环境推导：为什么常数步长 $\alpha$ 能追踪漂移赌场？
 
-## 规划交互
+如果你在 2.1 节试玩了「🌪️ 非平稳漂移赌场」，一定切身感受到：前 25 轮你辛辛苦苦攒出来的样本均值，在第 25 轮赌场洗牌后变成了**沉重的历史包袱**——因为步长 $\frac{1}{n}$ 越来越小，新观测的权重几乎被旧数据淹没！
 
-- **`<BanditStrategyRace />`**：百轮蒙特卡洛赛车场：实时调节 ε、初始值 Q₁、步长 α 与漂移速度，同屏绘制 4 条最优动作率与平均奖励曲线
+解决办法是把递减步长 $\frac{1}{n}$ 替换为一个**常数步长 $\alpha \in (0, 1]$**：
 
-## 规划动效
+$$
+Q_{n+1} = Q_n + \alpha \big(R_n - Q_n\big) = \alpha R_n + (1 - \alpha) Q_n
+$$
 
-- 🎬 **`epsilon-coin-split`**：复古街机续篇：抛硬币分流探索与利用双通道，结合历史样本权重随 (1-α)^k 指数衰减的波纹动画
+我们把 $Q_n$ 一层层递推展开，看看它在数学上究竟做了什么：
+
+$$
+\begin{aligned}
+Q_{n+1} &= \alpha R_n + (1-\alpha)\Big[\alpha R_{n-1} + (1-\alpha) Q_{n-1}\Big] \\
+&= \alpha R_n + \alpha(1-\alpha) R_{n-1} + (1-\alpha)^2 Q_{n-1} \\
+&\;\;\vdots \\
+&= (1-\alpha)^n Q_1 + \sum_{i=1}^{n} \alpha (1-\alpha)^{n-i} R_i
+\end{aligned}
+$$
+
+检查一下所有系数之和：$(1-\alpha)^n + \sum_{i=1}^n \alpha(1-\alpha)^{n-i} = (1-\alpha)^n + \alpha \frac{1-(1-\alpha)^n}{1-(1-\alpha)} = 1$！
+
+这是一个严格的加权平均，称为**指数近因加权平均（Exponential Recency-Weighted Average）**：
+- 最新奖励 $R_n$ 的权重是 $\alpha$；
+- 往前推 $k$ 步的旧奖励权重按 **$(1-\alpha)^k$ 指数衰减**；
+- 当 $\alpha = 0.2$ 时，10 步以前的旧赔率权重只剩 $0.2 \times 0.8^{10} \approx 2.1\%$，智能体迅速遗忘过期记忆、紧跟最新赔率！
+
+### 📊 交互实验：10 臂老虎机百轮赛车场（亲手开启非平稳漂移 σ！）
+
+先观察平稳环境（`σ = 0`）下乐观初值的亮眼表现；然后把最右侧的 **「非平稳漂移 σ」滑块拉到 `0.15`–`0.25`**，亲眼见证 **青绿色常数步长 $\alpha$ 曲线如何全面碾压蓝色的样本均值 `1/n`**：
+
+<BanditStrategyRace />
+
+---
+
+## 4. 理论补充：随机逼近的 Robbins–Monro 收敛条件
+
+对于一般的时变步长序列 $\{\alpha_n(a)\}$，在平稳环境中保证 $Q_n$ 以概率 $1$ 收敛到真实值 $q_*(a)$ 需要同时满足两条经典条件：
+
+$$
+\sum_{n=1}^{\infty} \alpha_n(a) = \infty \qquad \text{且} \qquad \sum_{n=1}^{\infty} \alpha_n^2(a) < \infty
+$$
+
+- 第一条保证步长之和足够大，无论初始值错得多离谱都能走过去修正；
+- 第二条保证步长最终衰减得足够快，噪声波动会被彻底压平。
+- 样本平均 $\alpha_n = \frac{1}{n}$ 同时满足两条（调和级数发散、平方倒数级数收敛为 $\frac{\pi^2}{6}$）；而常数步长 $\alpha_n = \alpha$ 违反第二条——它**故意不完全收敛**，以此换取在非平稳世界里永葆敏锐的追踪能力！
+
+---
+
+## 5. 可运行 Python 对比实验代码
+
+```python
+import numpy as np
+
+def run_nonstationary_bandit(steps=1000, k=10, eps=0.1, alpha=None, drift=0.05, seed=0):
+    """alpha=None 使用样本均值 1/n；alpha=0.1 使用常数步长追踪非平稳漂移"""
+    rng = np.random.default_rng(seed)
+    true_q = np.zeros(k)
+    Q = np.zeros(k)
+    N = np.zeros(k, dtype=int)
+    opt_hits = np.zeros(steps)
+
+    for t in range(steps):
+        true_q += rng.normal(0.0, drift, size=k)             # 非平稳随机游走
+        best_a = int(np.argmax(true_q))
+        a = int(rng.integers(k)) if rng.random() < eps else int(np.argmax(Q))
+        r = rng.normal(true_q[a], 1.0)
+        N[a] += 1
+        step_size = (1.0 / N[a]) if alpha is None else alpha
+        Q[a] += step_size * (r - Q[a])
+        opt_hits[t] = 1.0 if a == best_a else 0.0
+    return opt_hits
+
+print("非平稳末 200 步最优动作率 — 样本均值:", run_nonstationary_bandit(alpha=None)[-200:].mean())
+print("非平稳末 200 步最优动作率 — 常数 α=0.1:", run_nonstationary_bandit(alpha=0.1)[-200:].mean())
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在非平稳（真实均值随时间漂移）的老虎机环境中，为什么常数步长 α = 0.1 的表现远远好于样本平均步长 1/n？',
+      options: ['因为常数步长满足 Robbins–Monro 收敛条件', '因为常数步长给近期观测赋予指数级更高的权重，能够迅速遗忘过期的历史均值', '因为常数步长会自动增加探索概率 ε', '因为样本平均步长在计算上会出现除零错误'],
+      answerIndex: 1,
+      explanation: '样本平均把第 1 步和第 1000 步看得一样重，步长 1/1000 几乎无法响应新变化；常数步长形成的指数近因加权平均会以 (1-α)^k 快速淡忘陈旧数据。',
+    },
+    {
+      question: '在 10 臂老虎机中，若固定 ε = 0.1，当训练步数 t → ∞ 且各臂估计值完全收敛后，智能体每一步选中最优臂的概率是多少？',
+      options: ['100%', '90%', '91%', '89%'],
+      answerIndex: 2,
+      explanation: '别忘了随机探索那 10% 里，有 1/10 的概率依然会随机撞中那台最优臂！所以总概率是 (1 - 0.1) + 0.1/10 = 0.91 = 91%。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：2.3 UCB、Thompson 采样与梯度老虎机" href="/docs/02-bandits/03-ucb-thompson-gradient" />
+  <Card title="下一节：2.3 UCB、Thompson 采样与梯度老虎机" href="/docs/02-bandits/03-ucb-thompson-gradient" description="用精确的 Beta 密度曲线飞镖实验与 Hoeffding 置信上界，将遗憾从线性 O(T) 压缩到对数 O(log T)！" />
 </Cards>

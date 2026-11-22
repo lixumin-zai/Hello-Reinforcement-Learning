@@ -6,28 +6,146 @@ icon: 'Compass'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { FogTreasureGame } from '@/components/docs/01-worldview/FogTreasureGame';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={1}
+  time="15 分钟"
+  prereqs={['基础概率直觉']}
+  goals={[
+    '亲手通过试错体会延迟奖励与信用分配的困难',
+    '准确写出智能体—环境交互闭环与轨迹 τ 的数学表达',
+    '理解奖励假设（Reward Hypothesis）及奖励设计的核心红线',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★☆☆☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 先玩一局：你其实天生就会强化学习
+
+先别急着背任何定义。想象你被空投到一座完全陌生的 $5 \times 5$ 迷雾遗迹中：你不知道哪里有墙、哪里有致命熔岩、哪里藏着宝石和皇冠，甚至不知道走一步扣多少分。
+
+请你现在亲自操作下方小游戏，**至少玩 2–3 个回合**，并在找到皇冠后点击「**回放信用分配**」：
+
+<FogTreasureGame />
+
+回顾你刚才的大脑是如何工作的：
+
+1. **第一回合（纯试错探索）**：你不小心一脚踩进熔岩收到 `-6`，大脑立刻给那个坐标打上了“危险负值”标签；
+2. **第二回合（利用已知记忆 + 继续探索）**：你绕开熔岩，发现了途中的 `+3` 宝石，最终摸到了 `+15` 的皇冠；
+3. **点击“回放信用分配”时**：你突然发现——真正拿到 `+15` 虽然发生在最后一步，但**把你引向那条安全通道的前几步岔路口选择**同样功不可没！
+
+这正是**强化学习（Reinforcement Learning, RL）**区别于其他所有机器学习范式的两大灵魂特征：**试错搜索（Trial-and-Error）**与**延迟奖励（Delayed Reward）**。
+
+---
+
+## 2. 智能体—环境交互闭环（Agent–Environment Loop）
+
+把你刚才的探险经历抽象成严谨的数学符号，强化学习的世界永远只有两个主角：
+
+- **智能体（Agent）**：做出决策的学习者（刚才的你，或神经网络策略 $\pi$）；
+- **环境（Environment）**：智能体之外一切不受其直接内部控制的世界（迷雾地图、物理规律、对手、甚至机器人自身的电机摩擦）。
+
+在每个离散时间步 $t = 0, 1, 2, \dots$，交互按严格节拍推进：
+
+1. 环境向智能体呈现当前**状态（State）** $S_t \in \mathcal{S}$；
+2. 智能体根据自身**策略（Policy）** $\pi(a \mid S_t)$ 采样并输出**动作（Action）** $A_t \in \mathcal{A}$；
+3. 环境受动作影响发生状态转移，在时刻 $t+1$ 反馈一个标量**奖励（Reward）** $R_{t+1} \in \mathbb{R}$ 以及**新状态** $S_{t+1} \in \mathcal{S}$。
+
+> 为什么时刻 $t$ 执行的动作 $A_t$ 对应的奖励记作 **$R_{t+1}$** 而不是 $R_t$？这是 Sutton & Barto 教材的经典约定，强调 **$R_{t+1}$ 和 $S_{t+1}$ 是共同作为动作 $A_t$ 的后果在下一拍产生的**。
+
+将这一循环从 $t=0$ 串联到回合结束 $T$，便得到一条**经验轨迹（Trajectory / Rollout）**：
+
+$$
+\tau = \big(S_0, A_0, R_1, S_1, A_1, R_2, S_2, \dots, S_{T-1}, A_{T-1}, R_T, S_T\big)
+$$
+
+### 🎬 Remotion 动作讲解：交互电路闭环与金色信用回溯波
+
+<MotionPlayer id="agent-env-pulse" />
+
+---
+
+## 3. 时序信用分配（Temporal Credit Assignment）与手算例子
+
+假设你在刚才的迷雾遗迹中走了 4 步到达皇冠，收到的即时奖励序列为：
+
+$$
+R_1 = -0.2, \quad R_2 = -0.2, \quad R_3 = -0.2, \quad R_4 = +15.0
+$$
+
+如果你只看“眼前这一步拿了多少分”，第 0、1、2 步全是负分，智能体会误以为自己走错了！为了把未来的功劳折现回传给当前动作，我们引入折扣因子 $\gamma \in [0, 1]$（这里取 $\gamma = 0.85$），从终点倒推每一步的**折扣回报（Discounted Return）** $G_t = R_{t+1} + \gamma G_{t+1}$：
+
+- $t = 3$（推门拿皇冠）：$G_3 = R_4 = +15.00$
+- $t = 2$（走入秘道）：$G_2 = R_3 + 0.85 \times G_3 = -0.2 + 0.85 \times 15.00 = +12.55$
+- $t = 1$（岔路口向上拐弯）：$G_1 = R_2 + 0.85 \times G_2 = -0.2 + 0.85 \times 12.55 = +10.47$
+- $t = 0$（离开起点）：$G_0 = R_1 + 0.85 \times G_1 = -0.2 + 0.85 \times 10.47 = +8.70$
+
+看！虽然前 3 步即时奖励全是 `-0.2`，但经过信用回溯后，它们都获得了高达 `+8.7 ~ +12.6` 的正向价值评价。**整个强化学习的算法发展史（MC、TD、资格迹、GAE），本质上都在研究如何更高效、更低方差地完成这场信用分配。**
+
+---
+
+## 4. 奖励假设（Reward Hypothesis）与设计红线
+
+一个一维实数 $R_t$ 真的能表达“下赢围棋”“让机器人稳健奔跑”“让大模型既诚实又有帮助”这样复杂的目标吗？强化学习建立在以下基础公理之上：
+
+<Callout type="info" title="奖励假设 (Reward Hypothesis)">
+  我们所说的任何目标（Goal）或意图（Purpose），都可以形式化地归结为：**最大化智能体接收到的某个标量信号（奖励）的期望累积和**：
+  $$\pi^* = \arg\max_{\pi}\; \mathbb{E}_{\tau \sim \pi}\left[\sum_{t=0}^{\infty} \gamma^t R_{t+1}\right]$$
 </Callout>
 
-## 核心知识点
+<Callout type="warn" title="新手最高频误区：把奖励当成“微操教学”">
+  **黄金铁律：奖励只用来告诉智能体「你要达成什么结果 (What)」，绝不要教它「具体该怎么走 (How)」。**  
+  比如训练下国际象棋时，如果你自作聪明给“吃掉对方一个兵”加 `+0.5` 分，AI 可能会为了贪吃小兵而丢掉整个王城——这种为了刷子目标奖励而背离真实意图的现象叫**奖励黑客（Reward Hacking）**，我们将在第 10 章大模型对齐中亲眼见识它的威力。
+</Callout>
 
-- 试错搜索与延迟奖励的挑战
-- 智能体—环境交互闭环与轨迹 τ
-- 时序信用分配问题 (Credit Assignment)
-- 奖励假设 (Reward Hypothesis) 与设计边界
+---
 
-## 规划交互
+## 5. 可运行 Python 最小闭环模板（Gymnasium 风格）
 
-- **`<FogTreasureGame />`**：完整可玩小游戏《迷雾寻宝》：隐藏地图规则，键盘/点击试错探索，实时录制轨迹并回放信用分配
+下面这 25 行代码几乎是所有现代强化学习工程（从 Atari 到机器人再到 LLM）的通用骨架：
 
-## 规划动效
+```python
+def run_episode(env, policy, gamma=0.85):
+    """标准 Agent-Environment 交互闭环 + 反向信用回溯"""
+    state, _ = env.reset()
+    trajectory = []
+    done = False
 
-- 🎬 **`agent-env-pulse`**：霓虹电路脉冲风：信号光束沿闭环流动，命中终局奖励后金色信用回溯波倒流点亮关键转折决策
+    while not done:
+        action = policy(state)                        # 1. 策略决策 A_t ~ π(·|S_t)
+        next_state, reward, terminated, truncated, _ = env.step(action)
+        done = terminated or truncated
+        trajectory.append((state, action, reward))    # 2. 录制轨迹四元组
+        state = next_state
+
+    # 3. 回合结束：从终点反向递归计算每一步的折扣回报 G_t (信用分配)
+    G = 0.0
+    returns = []
+    for _, _, r in reversed(trajectory):
+        G = r + gamma * G
+        returns.append(G)
+    returns.reverse()
+    return trajectory, returns
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在智能体—环境边界划分中，如果我们在训练一台人形机器人的步态控制算法，机器人的电机、机械臂和关节摩擦力应当归属于？',
+      options: ['智能体（Agent）的一部分', '环境（Environment）的一部分', '奖励函数的一部分', '策略网络的参数'],
+      answerIndex: 1,
+      explanation: '边界的严格判定标准是“智能体能否直接任意改写它”。电机磨损、物理重力与关节延迟不受算法直接控制，只能通过指令间接地施加影响，因此全部属于环境（Environment）！',
+    },
+    {
+      question: '如果在迷宫寻宝中，某条路线需要走 10 步才拿到 +10 宝藏，每步消耗 -0.2。若把折扣因子 γ 设成 0，智能体会发生什么？',
+      options: ['更快找到远处的宝藏', '完全变成近视眼，只看眼前 1 步的即时奖励而放弃寻找远处宝藏', '回报 G_t 会发散到无穷大', '算法退化为蒙特卡洛方法'],
+      answerIndex: 1,
+      explanation: '当 γ = 0 时，G_t = R_{t+1} + 0·G_{t+1} = R_{t+1}，未来所有步的权重全部归零，智能体彻底丧失远见。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：1.2 三大学习范式与 i.i.d. 假设的破裂" href="/docs/01-worldview/02-paradigms-and-nonstationarity" />
+  <Card title="下一节：1.2 三大学习范式与 i.i.d. 假设的破裂" href="/docs/01-worldview/02-paradigms-and-nonstationarity" description="为什么监督学习直接搬到强化学习里会翻车？动态体验数据分布漂移。" />
 </Cards>

@@ -6,29 +6,183 @@ icon: 'TrendingUp'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { ThompsonBetaArena } from '@/components/docs/02-bandits/ThompsonBetaArena';
+import { SoftmaxGradientLab } from '@/components/docs/02-bandits/SoftmaxGradientLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={3}
+  time="22 分钟"
+  prereqs={['2.2 ε-贪心', 'Beta 分布与基础不等式直觉']}
+  goals={[
+    '理解为何 ε-贪心是“盲目探索”，而 UCB 与 Thompson 是“按不确定性精准探索”',
+    '掌握 UCB1 公式两项的数学由来（Hoeffding 置信界）及 O(log T) 对数遗憾直觉',
+    '吃透 Beta-Bernoulli 共轭后验更新与 Thompson Sampling 的概率匹配原理',
+    '理解梯度老虎机 (Softmax 偏好) 与基线如何平滑衔接第 8 章策略梯度',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. $\varepsilon$-贪心的盲区：为什么要给已知的烂机台浪费机会？
+
+想象你已经拉了 500 轮：
+- **1 号机**拉了 200 次，均值稳稳停在 `0.21`（几乎 100% 确定是垃圾机）；
+- **3 号机**拉了 295 次，均值稳稳停在 `0.78`；
+- **4 号机**只拉了 5 次，均值暂时是 `0.60`（样本太少，说不定真实胜率有 `0.85`！）。
+
+这时 $\varepsilon$-贪心决定“探索一次”——它居然以**完全相同的概率**去拉早就被判死刑的 1 号机和充满潜力的 4 号机！显然，聪明的探索应当**优先尝试那些“当前估值还不赖，或者拉动次数太少、不确定性极大”的动作**。
+
+沿着这条直觉，统计学给出了两套惊艳的数学方案：**频率派的 UCB** 与 **贝叶斯派的 Thompson Sampling**。
+
+---
+
+## 2. UCB1：面对不确定性保持乐观（Optimism in the Face of Uncertainty）
+
+如果每个动作的真实均值 $q_*(a)$ 落在以当前样本均值 $Q_t(a)$ 为中心的置信区间内，UCB（Upper Confidence Bound）采取一种大胆而优雅的策略：**永远相信每个动作都能达到它置信区间的最上端，然后选最乐观的那个！**
+
+$$
+A_t \doteq \arg\max_{a \in \{1,\dots,k\}} \left[\,\underbrace{Q_t(a)}_{\text{利用：历史均值}} \;+\; \underbrace{c \sqrt{\frac{\ln t}{N_t(a)}}}_{\text{探索：不确定性加成}}\,\right]
+$$
+
+### 根号项从哪来？（Hoeffding 不等式直觉）
+
+对取值在 $[0, 1]$ 内的独立同分布样本，Hoeffding 不等式保证样本均值严重低估真值的概率按指数衰减：
+
+$$
+\mathbb{P}\Big(q_*(a) > Q_t(a) + U\Big) \le \exp\big(-2 N_t(a)\, U^2\big)
+$$
+
+若令上界失效的概率随着总时间 $t$ 缩小为 $p = t^{-4}$（确保几乎不会失误），反解不确定性宽度 $U$：
+
+$$
+\exp\big(-2 N_t(a) U^2\big) = t^{-4} \;\;\Longrightarrow\;\; U = \sqrt{\frac{2 \ln t}{N_t(a)}}
+$$
+
+这就是经典 **UCB1** 算法（对应 $c = \sqrt{2}$）的精确由来！
+- 某臂很久没被拉：$N_t(a)$ 不动而分子 $\ln t$ 缓慢增长，它的置信上界会悄悄抬高直到赢下选择权；
+- 一旦被拉动：$N_t(a)$ 增大，置信上界迅速下压回落；
+- 对于已知的烂臂（均值极低），哪怕 $\ln t$ 慢慢增长，需要指数级长的时间才能再被挑中一次——因此总遗憾从 $O(T)$ 断崖式降至 **$O(\ln T)$**！
+
+---
+
+## 3. Thompson Sampling：贝叶斯后验的概率匹配
+
+贝叶斯派换了一种更自然的语言：与其算一个硬邦邦的置信上限，不如**给每台机台未知的中奖率 $\theta_a \in [0, 1]$ 维护一条完整的后验概率密度曲线**！
+
+对于伯努利 $0/1$ 奖励，**Beta 分布**是天然的**共轭先验**：
+
+$$
+p(\theta \mid \alpha, \beta) = \frac{\Gamma(\alpha+\beta)}{\Gamma(\alpha)\Gamma(\beta)}\, \theta^{\alpha - 1}(1 - \theta)^{\beta - 1}
+$$
+
+1. **开局先验**：所有机台设为 $\text{Beta}(1, 1)$（即 $[0,1]$ 上的平坦均匀分布，代表“一无所知”）；
+2. **采样决策（掷飞镖）**：每一步从每条曲线独立采样一个候选胜率 $\tilde{\theta}_a \sim \text{Beta}(\alpha_a, \beta_a)$，选出采样值最大的臂 $A_t = \arg\max_a \tilde{\theta}_a$；
+3. **贝叶斯精确更新**：观测到奖励 $R_t \in \{0, 1\}$ 后，只需做一次加法：
+   $$
+   \alpha_{A_t} \leftarrow \alpha_{A_t} + R_t, \qquad \beta_{A_t} \leftarrow \beta_{A_t} + (1 - R_t)
+   $$
+
+**直觉魔力**：一个动作被选中的概率，正好等于**“在当前后验信念下，它是全场最优动作的概率”**！不确定性大的臂曲线又矮又胖、右尾很长，天然有机会掷出高分飞镖；观测多的臂曲线又瘦又尖，一旦落后就几乎不再浪费算力。
+
+### 🎬 Remotion 动作讲解：贝叶斯波峰雕塑 & UCB 置信压帽
+
+<MotionPlayer id="bayesian-ucb-sculpture" />
+
+### 🎯 交互实验：真实 Beta(α, β) 曲线飞镖发射场 × UCB 气压计
+
+请连续点击「**发射采样飞镖 (+1 步)**」或「**+10 步**」，亲眼看着 4 条平坦的先验直线如何被一步步雕塑成指向各自真实胜率（底部小三角）的尖锐波峰，并对比下方的 UCB1 置信上界气压计：
+
+<ThompsonBetaArena />
+
+---
+
+## 4. 换一条赛道：梯度老虎机（Gradient Bandit）与 Softmax 偏好
+
+前面所有算法都在估计绝对价值 $Q(a)$。但如果动作的奖励动不动加上一个大常数（比如从 `[-1, +1]` 变成 `[+1000, +1002]`），直接比数值反而冗余。另一条路线是**直接学习动作之间的相对数值偏好 $H_t(a) \in \mathbb{R}$**，通过 Softmax 转化为随机策略：
+
+$$
+\pi_t(a) \doteq \frac{e^{H_t(a) / \tau}}{\sum_{b=1}^{k} e^{H_t(b) / \tau}}
+$$
+
+收到奖励 $R_t$ 后，直接沿期望奖励 $\mathbb{E}[R_t]$ 的随机梯度上升方向更新所有偏好（这正是第 8 章**策略梯度定理**的单状态特例！）：
+
+$$
+H_{t+1}(a) = H_t(a) + \alpha \big(R_t - \bar{R}_t\big)\big(\mathbb{I}_{a = A_t} - \pi_t(a)\big)
+$$
+
+其中历史平均奖励 $\bar{R}_t$ 充当**基线（Baseline）**：
+- 若 $R_t > \bar{R}_t$（比平均表现好），增大选中动作偏好、压低其余动作偏好；
+- 若 $R_t < \bar{R}_t$（比平均表现差），反向削弱选中动作偏好！
+
+### 🌡️ 交互实验：体验有没有基线 $\bar{R}_t$ 的巨大差别
+
+<SoftmaxGradientLab />
+
+<Callout type="info" title="通往完整 RL 的最后一阶：上下文老虎机 (Contextual Bandits)">
+  在互联网推荐与广告竞价中，每次选品前都能看到用户画像向量 $\mathbf{x}_t$（上下文），算法如 **LinUCB** 用线性回归估计 $\hat{r}(\mathbf{x}, a) = \mathbf{x}^\top \hat{\boldsymbol\theta}_a$ 并加上椭圆置信上界 $\alpha \sqrt{\mathbf{x}^\top \mathbf{A}_a^{-1}\mathbf{x}}$。不过上下文老虎机里当前动作仍不影响“下一位到来的用户是谁”——一旦当前动作会改变未来状态，我们就正式进入了下一章的**马尔可夫决策过程 (MDP)**！
 </Callout>
 
-## 核心知识点
+---
 
-- Hoeffding 不等式直觉与 UCB1 置信上界公式
-- Beta-Bernoulli 共轭先验与 Thompson Sampling 概率匹配
-- 梯度老虎机 (Softmax 偏好) 与基线的作用
-- 对数遗憾界 O(log T) 与上下文老虎机 LinUCB 简介
+## 5. 可运行 Python 完整对比（UCB1 vs Thompson Sampling）
 
-## 规划交互
+```python
+import numpy as np
 
-- **`<ThompsonBetaArena />`**：真实数学 SVG Beta 概率密度曲线 (PDF) 演化器：4 条平滑彩色分布曲线 + 采样飞镖发射动画 + UCB 置信气压计对照
-- **`<SoftmaxGradientLab />`**：交互调节偏好值 H(a) 与温度 τ，模拟梯度老虎机带/不带基线的更新步
+def run_ucb_and_thompson(probs=(0.28, 0.52, 0.76, 0.42), steps=500, seed=42):
+    probs = np.array(probs)
+    k, best = len(probs), float(np.max(probs))
 
-## 规划动效
+    # 1. UCB1
+    rng = np.random.default_rng(seed)
+    Q, N = np.zeros(k), np.zeros(k)
+    regret_ucb = 0.0
+    for t in range(1, steps + 1):
+        untried = np.where(N == 0)[0]
+        if len(untried) > 0:
+            a = int(untried[0])
+        else:
+            a = int(np.argmax(Q + np.sqrt(2.0 * np.log(t) / N)))
+        r = 1.0 if rng.random() < probs[a] else 0.0
+        N[a] += 1
+        Q[a] += (r - Q[a]) / N[a]
+        regret_ucb += best - probs[a]
 
-- 🎬 **`bayesian-ucb-sculpture`**：贝叶斯波峰雕塑风：4 条真实 Beta 密度曲线随采样不断变尖变瘦向真实中奖率聚拢，上方 UCB 置信上限帽随 N(a) 增大实时下压
+    # 2. Beta-Bernoulli Thompson Sampling
+    rng = np.random.default_rng(seed)
+    alpha, beta = np.ones(k), np.ones(k)
+    regret_ts = 0.0
+    for _ in range(steps):
+        samples = rng.beta(alpha, beta)
+        a = int(np.argmax(samples))
+        r = 1.0 if rng.random() < probs[a] else 0.0
+        alpha[a] += r
+        beta[a] += 1.0 - r
+        regret_ts += best - probs[a]
+
+    return regret_ucb, regret_ts
+
+u, ts = run_ucb_and_thompson()
+print(f"500 轮总遗憾 -> UCB1: {u:.2f}, Thompson Sampling: {ts:.2f}")
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 Thompson Sampling 中，为什么开局将每个臂初始化为 Beta(1, 1)？如果把某个臂的先验设为 Beta(10, 10) 会有什么效果？',
+      options: ['Beta(1,1) 是均匀分布代表无先验偏见；Beta(10,10) 代表强烈相信该臂胜率在 0.5 附近，初期更难被少量观测撼动', 'Beta(1,1) 代表相信胜率为 100%', 'Beta(10,10) 会让算法退化为纯贪心', '两者完全等价，没有任何区别'],
+      answerIndex: 0,
+      explanation: 'α 和 β 可以直观理解为“开局自带的虚拟成功/失败次数”。Beta(1,1) 相当于零虚拟观测的平坦先验；Beta(10,10) 相当于开局自带 9 胜 9 负，先验置信度很高。',
+    },
+    {
+      question: '为什么在梯度老虎机中，当所有奖励都加上一个正偏移（例如真实均值都在 +4 附近）且不使用基线 R̄ 时，学习会明显变慢？',
+      options: ['因为 Softmax 无法接收正数输入', '因为无论选中好臂还是差臂，R_t > 0 都会先盲目提高当前选中动作的偏好，导致大量无效的拉锯震荡', '因为梯度方向变成了梯度下降', '因为温度 τ 会变成负数'],
+      answerIndex: 1,
+      explanation: '没有基线时，哪怕选到了全场最差的动作（比如得 +2.5 分，低于均值 +4.0），算法只看到 +2.5 > 0 依然去奖励它！加上基线 R̄ 后，2.5 - 4.0 = -1.5 < 0 立刻精准惩罚差动作。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：第 3 章：马尔可夫决策过程与 Bellman 方程" href="/docs/03-mdp-bellman" />
+  <Card title="进入 L2 · 第 3 章：马尔可夫决策过程 (MDP) 与 Bellman 方程" href="/docs/03-mdp-bellman" description="从单状态老虎机跨入多状态动态世界，彻底建立强化学习的数学母语！" />
 </Cards>
