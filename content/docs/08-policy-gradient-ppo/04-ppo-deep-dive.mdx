@@ -6,28 +6,138 @@ icon: 'Scissors'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { PPOOscilloscopeLab } from '@/components/docs/08-policy-gradient-ppo/PPOOscilloscopeLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={5}
+  time="26 分钟"
+  prereqs={['8.2 GAE', '8.3 KL 信赖域与替代目标']}
+  goals={[
+    '彻底看透 PPO-Clip 目标函数中 min(r·Â, clip(r)·Â) 在正/负优势下的不对称精妙设计',
+    '掌握 PPO 的三项完整总损失（Policy Clip + Value Loss + Entropy Bonus）与多轮 Mini-batch 复用',
+    '掌握直接可用于工业项目与 RLHF 魔改的干净版 PyTorch PPO 核心训练循环',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★★ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 化繁为简的天才一刀：PPO-Clip 目标函数
+
+2017 年 OpenAI 的 John Schulman 问了一个价值连城的问题：**“既然 TRPO 的核心就是不让新旧策略概率比 $r_t(\theta) \doteq \frac{\pi_\theta(A_t\mid S_t)}{\pi_{\theta_{\text{old}}}(A_t\mid S_t)}$ 偏离 $1$ 太远，为什么不直接把目标函数在 $[1 - \varepsilon, 1 + \varepsilon]$ 之外一刀剪平？”**
+
+这就是横扫机器人控制、Dota 2 (OpenAI Five) 与 ChatGPT RLHF 的 **PPO-Clip 目标函数**（通常 $\varepsilon = 0.2$）：
+
+$$
+L^{\text{CLIP}}(\theta) \;\doteq\; \hat{\mathbb{E}}_t\left[\,\min\Big(\, r_t(\theta)\,\hat{A}_t, \;\; \text{clip}\big(r_t(\theta),\, 1 - \varepsilon,\, 1 + \varepsilon\big)\,\hat{A}_t \,\Big)\,\right]
+$$
+
+### 为什么外层必须包一层 $\min(\cdot, \cdot)$？分两种情形看透它的精妙！
+
+1. **情形一：这是一个好动作（$\hat{A}_t > 0$）**
+   - 我们想最大化 $L^{\text{CLIP}}$，于是推高概率让 $r_t$ 增大；
+   - 一旦 $r_t > 1 + \varepsilon$，截断项封顶在 $(1+\varepsilon)\hat{A}_t$，外层 $\min$ 选中常数平台——**梯度瞬间归零！不再鼓励继续往右猛冲**；
+   - 但如果 $r_t$ 意外掉到 $1 - \varepsilon$ 左边（往坏方向跑偏了），未截断项 $r_t \hat{A}_t$ 更小被 $\min$ 选中——**依然保留完整梯度把它强力拉回安全区！**
+2. **情形二：这是一个坏动作（$\hat{A}_t < 0$）**
+   - 我们想压低概率让 $r_t$ 减小；
+   - 一旦 $r_t < 1 - \varepsilon$，注意乘上负的 $\hat{A}_t$ 后 $(1-\varepsilon)\hat{A}_t$ 更小，外层 $\min$ 选中水平平台——**梯度归零，阻止把概率压爆！**
+   - 反之若 $r_t > 1 + \varepsilon$（把坏动作概率反而调高了），未截断项 $r_t \hat{A}_t$ 更负被 $\min$ 选中——**立刻施加严厉惩罚拉回！**
+
+> **一句话总结外层 $\min$ 的本质**：构造了一个**悲观下界（Pessimistic Lower Bound）**——只封顶“贪心激进获益”的激励，绝不放过“往反方向改错”的惩罚！
+
+### 🎬 Remotion 动作讲解：PPO-Clip 双通道示波器与零梯度机械限位
+
+<MotionPlayer id="ppo-clip-oscilloscope" />
+
+### ✂️ 交互实验：精密 PPO-Clip 示波器（亲手拖动 $\hat{A}_t, \varepsilon, r_t$ 观察斜率归零）
+
+<PPOOscilloscopeLab />
+
+---
+
+## 2. PPO 完整训练流程与核心工程细节
+
+因为有了 Clip 保护罩，PPO 采集一批 Rollout 轨迹后，可以安全地打乱分成 Mini-Batch **复用更新 $K = 4 \sim 10$ 个 Epoch**（大幅超越传统 A2C 用一次就丢的样本效率）！总优化目标由三项组成：
+
+$$
+L^{\text{PPO}}(\theta, \phi) \;=\; \hat{\mathbb{E}}_t\Big[\, \underbrace{L_t^{\text{CLIP}}(\theta)}_{\text{策略截断目标}} \;-\; c_1 \underbrace{\big(V_\phi(S_t) - V_t^{\text{targ}}\big)^2}_{\text{Critic 价值均方损失}} \;+\; c_2 \underbrace{\mathcal{H}\big(\pi_\theta(\cdot \mid S_t)\big)}_{\text{熵探索奖励}} \,\Big]
+$$
+
+<Callout type="tip" title="CleanRL / 37 Implementation Details 中的 5 条保命细节">
+  1. **Mini-Batch 级优势归一化**：在每个小批量内做 `adv = (adv - adv.mean()) / (adv.std() + 1e-8)`，大幅稳定梯度尺度；
+  2. **正交权重初始化（Orthogonal Init）**：策略输出层用极小标准差 `std=0.01` 初始化，确保开局各动作概率接近均匀分布；
+  3. **全局梯度裁剪**：`clip_grad_norm_(params, 0.5)` 防止偶发极大优势炸毁网络；
+  4. **监控近似 KL 与 Clip Fraction**：若一个 Epoch 内 `approx_kl > 0.02` 则提前早停（Early Stopping），Clip 触发比例正常应在 `5% ~ 20%`；
+  5. **线性衰减学习率**：随着训练推进将 Adam 学习率平滑衰减至 0。
 </Callout>
 
-## 核心知识点
+---
 
-- 概率比 r_t(θ) 与 PPO-Clip 目标函数的分情形数学解剖
-- 总损失函数：Policy Clip + Value Loss + Entropy Bonus
-- Mini-batch 多轮复用与优势归一化等核心实现细节
-- 完整可运行的 PyTorch PPO 训练主循环代码
+## 3. 干净可直接运行的 PyTorch PPO 核心更新函数
 
-## 规划交互
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
-- **`<PPOOscilloscopeLab />`**：PPO-Clip 交互示波器：实时拖动 Â_t、ε 与 r_t(θ)，在动态 SVG 坐标系上直观观察未截断斜线、截断折线、实时梯度值（死区归零）与策略变化
+def ppo_update(
+    actor_critic, optimizer,
+    obs, actions, old_logprobs, returns, advantages,
+    epochs=4, batch_size=64, clip_eps=0.2, vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5
+):
+    """标准 PPO-Clip 多轮 Mini-Batch 更新（直接对齐 CleanRL / SB3 核心逻辑）"""
+    N = obs.size(0)
+    for _ in range(epochs):
+        perm = torch.randperm(N)
+        for start in range(0, N, batch_size):
+            idx = perm[start : start + batch_size]
+            mb_obs, mb_act = obs[idx], actions[idx]
+            mb_old_lp, mb_ret = old_logprobs[idx], returns[idx]
+            mb_adv = advantages[idx]
 
-## 规划动效
+            # 1. 小批量优势标准化（关键稳压技巧！）
+            mb_adv = (mb_adv - mb_adv.mean()) / (mb_adv.std() + 1e-8)
 
-- 🎬 **`ppo-clip-oscilloscope`**：精密双通道示波器风：左右双屏分示 Â_t &gt; 0 与 Â_t &lt; 0，概率比光点撞上 1±ε 机械限位挡板时火花提示且梯度表归零
+            # 2. 用最新网络重新前向计算 log π_θ(a|s)、熵 H 与 V_φ(s)
+            dist, values = actor_critic(mb_obs)
+            new_lp = dist.log_prob(mb_act)
+            entropy = dist.entropy().mean()
+
+            # 3. 概率比 r_t(θ) = exp(log π_new - log π_old)
+            log_ratio = new_lp - mb_old_lp
+            ratio = log_ratio.exp()
+
+            # 4. PPO-Clip 悲观替代目标（加负号转为梯度下降损失）
+            surr1 = ratio * mb_adv
+            surr2 = torch.clamp(ratio, 1.0 - clip_eps, 1.0 + clip_eps) * mb_adv
+            policy_loss = -torch.min(surr1, surr2).mean()
+
+            # 5. Critic 价值损失 + 熵探索奖励
+            value_loss = F.mse_loss(values.squeeze(-1), mb_ret)
+            loss = policy_loss + vf_coef * value_loss - ent_coef * entropy
+
+            optimizer.zero_grad()
+            loss.backward()
+            nn.utils.clip_grad_norm_(actor_critic.parameters(), max_grad_norm)
+            optimizer.step()
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '当优势 Â_t < 0（某动作是坏动作）且当前概率比 r_t(θ) = 1.5（新策略竟然比旧策略更爱选这个坏动作！）时，PPO-Clip 在此处会被截断归零吗？',
+      options: ['会被截断，梯度为 0', '不会被截断！因为 min(1.5·Â, 1.2·Â) = 1.5·Â（负数乘大数更小），保留完整梯度把策略狠狠拉回安全区', '概率比会被自动设为 1', '目标函数会变成正无穷'],
+      answerIndex: 1,
+      explanation: '这正是外层 min 的精妙之处：它只拦截“往好方向走太猛的贪心”，对“往反方向改错”的样本绝不手软！',
+    },
+    {
+      question: '在 PPO 的一个 Rollout 复用多轮更新时，为什么第 1 个 Epoch 的第 1 个 Batch 上，所有样本的概率比 r_t(θ) 都严格等于 1.000？',
+      options: ['因为代码把 ratio 初始化为了 1', '因为在做第一次梯度更新前，当前策略参数 θ 恰好等于采集该批数据时的旧参数 θ_old，故 π_θ / π_{θ_old} ≡ 1', '因为优势归一化把概率比变成了 1', '因为折扣因子 γ = 1'],
+      answerIndex: 1,
+      explanation: '第 1 个 Batch 时 θ = θ_old，PPO 的第一步更新等价于普通带 GAE 的策略梯度；从第 2 个 Batch 起 θ 偏离 θ_old，Clip 机制开始发挥护栏作用！',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：第 9 章：连续控制、世界模型与蒙特卡洛树搜索" href="/docs/09-control-and-planning" />
+  <Card title="进入 L4 · 第 9 章：连续控制、世界模型与 MCTS ⭕❌" href="/docs/09-control-and-planning" description="探索最大熵 SAC、Dyna-Q 世界模型，并亲手与实时生长搜索树的井字棋 MCTS AI 过招！" />
 </Cards>

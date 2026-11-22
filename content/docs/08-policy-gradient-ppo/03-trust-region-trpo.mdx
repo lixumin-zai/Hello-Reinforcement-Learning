@@ -6,24 +6,82 @@ icon: 'ShieldCheck'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { KLTrustRegionRadar } from '@/components/docs/08-policy-gradient-ppo/KLTrustRegionRadar';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={5}
+  time="18 分钟"
+  prereqs={['8.2 Actor-Critic 与 GAE', 'KL 散度基础']}
+  goals={[
+    '理解为什么 RL 中的“策略崩溃”比监督学习的步长过大致命得多',
+    '看懂为什么必须在「策略分布空间（KL 散度）」而非「参数空间（L2 欧氏距离）」约束更新步幅',
+    '掌握 TRPO 的重要性采样替代目标与单调改进直觉，为下一节 PPO 做好铺垫',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★★ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. 悬崖式崩溃：为什么 RL 里“步子迈大一步”就能毁掉整个训练？
 
-## 核心知识点
+在监督学习里，如果某一步学习率太大走过头了，没关系——下一批训练数据还是原来那批干净的猫狗照片，梯度很快就能把模型拉回正轨。
 
-- 策略崩溃现象：坏策略收集更差数据的恶性循环
-- 重要性采样替代目标 L_\{θ_old\}(θ)
-- 为什么用分布空间的 KL 散度而非参数空间的 L2 距离
-- TRPO 单调改进下界、共轭梯度与自然梯度直觉
+但在**在策略强化学习**里，后果是灾难性的：
+1. 某一步梯度更新步幅太大，把策略 $\pi_\theta$ 推下悬崖，变成了一个原地转圈摔倒的烂策略；
+2. 下一个回合，智能体只能用这个**烂策略**去采集新数据——采回来的全是“摔倒”的垃圾样本，根本再也看不到高奖励区域；
+3. 算法在垃圾数据上越学越差，从此**永不翻身（Policy Collapse）**！
 
-## 规划交互
+---
 
-- **`<KLTrustRegionRadar />`**：双高斯策略 KL 信赖域雷达：拖动新策略均值 μ 与标准差 σ，实时渲染双分布重叠区、精确 D_KL 数值与超界红色警报
+## 2. 为什么不能简单限制参数步长 $\|\theta - \theta_{\text{old}}\|_2 \le \delta$？
+
+既然怕步子迈大，把神经网络学习率调小、或者限制 $\|\theta - \theta_{\text{old}}\|_2 \le 0.1$ 不行吗？
+
+**不行！参数空间里的“微小改动”在行为分布空间里可能是天翻地覆！**
+- 例如对于高斯策略 $\mathcal{N}(\mu, \sigma^2)$：把方差 $\sigma$ 从 $1.0$ 改到 $0.8$（改动 $0.2$）分布几乎没变；但把 $\sigma$ 从 $0.25$ 改到 $0.05$（同样只改了 $0.2$！），策略瞬间坍缩成一根针，行为分布剧变！
+
+真正的尺子应当度量**新旧策略动作分布之间的距离**——**KL 散度（Kullback–Leibler Divergence）**：
+
+$$
+\bar{D}_{\text{KL}}\big(\pi_{\theta_{\text{old}}} \,\|\, \pi_\theta\big) \;=\; \mathbb{E}_{s \sim d^{\pi_{\text{old}}}}\left[\sum_{a} \pi_{\theta_{\text{old}}}(a\mid s)\log\frac{\pi_{\theta_{\text{old}}}(a\mid s)}{\pi_\theta(a\mid s)}\right] \;\le\; \delta
+$$
+
+### 🛡️ 交互实验：双高斯策略 KL 信赖域雷达
+
+把下方的 `σ_new` 从 `1.0` 调小到 `0.4`，亲自感受为什么参数改得不多、KL 散度却立刻触发红色超界警报：
+
+<KLTrustRegionRadar />
+
+---
+
+## 3. TRPO：带 KL 硬约束的替代目标与单调改进
+
+Schulman 等人（2015）通过 Kakade & Langford 的性能差恒等式证明：只要新旧策略的最大 KL 散度被约束在足够小的**信赖域（Trust Region）**内，用旧策略数据计算的重要性采样**替代目标（Surrogate Objective）**就能保证真实性能单调不降！
+
+于是 **TRPO（Trust Region Policy Optimization）** 求解如下带约束优化问题：
+
+$$
+\max_{\theta}\;\; L^{\text{CPI}}(\theta) = \hat{\mathbb{E}}_t\left[\,\frac{\pi_\theta(A_t \mid S_t)}{\pi_{\theta_{\text{old}}}(A_t \mid S_t)}\, \hat{A}_t\,\right]
+\qquad \text{s.t.}\quad \hat{\mathbb{E}}_t\Big[D_{\text{KL}}\big(\pi_{\theta_{\text{old}}}(\cdot\mid S_t) \,\|\, \pi_\theta(\cdot\mid S_t)\big)\Big] \le \delta
+$$
+
+### TRPO 的工程痛点
+
+为了解这个二阶 KL 硬约束，TRPO 必须对 KL 散度做二阶泰勒展开，计算巨大的 **Fisher 信息矩阵** $\mathbf{F}$，再用**共轭梯度法（Conjugate Gradient）**求自然梯度方向 $\mathbf{F}^{-1} \mathbf{g}$ 并做回溯线搜索——代码动辄几百行、计算极重，且很难兼容共享底座的大规模视觉/语言 Transformer！
+
+> **自然而然的问题来了**：有没有办法**只用一阶 Adam/SGD**，不要 Fisher 矩阵、不要共轭梯度，也能把概率比 $\frac{\pi_\theta}{\pi_{\theta_{\text{old}}}}$ 稳稳锁在信赖域附近？  
+> 这正是下一节横扫工业界十年的王者算法——**PPO**！
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: 'TRPO 与自然策略梯度 (Natural Policy Gradient) 为什么坚持使用策略分布的 KL 散度而非参数向量的欧氏距离来划定更新信赖域？',
+      options: ['因为 KL 散度计算比欧氏距离更快', '因为神经网络参数尺度极不均匀，参数空间等距的一小步可能对应策略行为分布的剧烈崩溃；KL 散度直接度量行为分布变化，对参数化重标度具有不变性', '因为欧氏距离无法求导', '因为 KL 散度永远小于 1'],
+      answerIndex: 1,
+      explanation: '行为分布的平稳变化才是防止采样数据分布骤变崩溃的根本保证！',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：8.4 PPO-Clip 深度详解与 PyTorch 工程实战" href="/docs/08-policy-gradient-ppo/04-ppo-deep-dive" />
+  <Card title="下一节：8.4 PPO-Clip 深度详解与 PyTorch 工程实战 ✂️" href="/docs/08-policy-gradient-ppo/04-ppo-deep-dive" description="用一行 clip() 取代二阶 Fisher 矩阵！体验精密 PPO 示波器，附完整可运行 PyTorch PPO 代码！" />
 </Cards>

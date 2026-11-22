@@ -6,29 +6,114 @@ icon: 'Mountain'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { CartPoleGame } from '@/components/docs/08-policy-gradient-ppo/CartPoleGame';
+import { PolicyLandscapeLab } from '@/components/docs/08-policy-gradient-ppo/PolicyLandscapeLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="25 分钟"
+  prereqs={['第 7 章 DQN 的局限', '微积分链式法则与期望']}
+  goals={[
+    '亲手平衡 CartPole 倒立摆，感受随机策略 π_θ(a|s) 直接输出动作概率的优雅',
+    '一步不漏推导出「对数导数技巧 (Log-Derivative Trick)」与策略梯度定理',
+    '严格证明减去状态相关基线 b(s) 绝不引入任何偏差，却能成倍压缩梯度方差',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. 先挑战一把倒立摆：为什么直接学策略 $\pi_\theta(a \mid s)$ 更自然？
 
-## 核心知识点
+先试试下面这个经典控制小游戏 **CartPole（倒立摆）**：小车在水平轨道上左右移动，你要保持头顶的细杆倾斜不超过 $\pm 12^\circ$。先点击「**亲自顶杆**」看看你能坚持几步，再点击「**策略梯度 $\pi_\theta$ 接管**」，留意右侧的随机策略分布 $\pi_\theta(\text{左/右} \mid s)$ 如何丝滑响应倾角变化：
 
-- 参数化随机策略 π_θ 与性能目标 J(θ)
-- 对数导数技巧 (Log-Derivative Trick) 与策略梯度定理逐行推导
-- REINFORCE 蒙特卡洛策略梯度与高方差痛点
-- 状态相关基线 b(s) 不引入偏差的严格证明
+<CartPoleGame />
 
-## 规划交互
+直接参数化策略 $\pi_\theta(a \mid s)$（而非先学 $Q$ 再取 $\arg\max$）有三大不可替代的优势：
+1. **天生驾驭连续与高维动作空间**（输出高斯均值/方差，或 LLM 15 万词表上的 Softmax 概率）；
+2. **能学出真正的随机最优策略**（例如剪刀石头布、不完全信息扑克）；
+3. **策略演化平滑连续**：参数 $\theta$ 的微小变化只引起概率分布平滑微调，不像 $\arg\max_a Q_\theta$ 那样在动作边界发生剧烈跳变。
 
-- **`<CartPoleGame />`**：真实物理小游戏《倒立摆 CartPole 平衡挑战》：键盘 ←/→ 亲自顶杆子计时挑战，一键切换策略梯度控制器接管并实时观察 π_θ(左/右|s) 概率条
-- **`<PolicyLandscapeLab />`**：2D 策略梯度地形攀登器：对比有/无基线 b(s) 时梯度估计箭头的散点抖动幅度与攀登轨迹
+---
 
-## 规划动效
+## 2. 逐行推导：不靠环境模型 $p$ 也能对期望回报求梯度！
 
-- 🎬 **`policy-gradient-morph`**：等高线矢量场风：动作概率分布像液态波包随回报正负隆起/压低，右侧 2D 参数山丘上策略点沿期望梯度箭头稳步登顶
+我们的目标是最大化策略 $\pi_\theta$ 的期望轨迹回报：
+
+$$
+J(\theta) \;\doteq\; \mathbb{E}_{\tau \sim P_\theta}\big[R(\tau)\big] \;=\; \sum_{\tau} P_\theta(\tau)\, R(\tau)
+$$
+
+其中整条轨迹的概率为 $P_\theta(\tau) = \rho_0(s_0) \prod_{t=0}^{T-1} \pi_\theta(a_t \mid s_t)\, p(s_{t+1} \mid s_t, a_t)$。
+
+看起来有个死结：我们要对 $\theta$ 求梯度 $\nabla_\theta J(\theta)$，而 $P_\theta(\tau)$ 里面混着完全未知的环境动力学 $p(s_{t+1}\mid s_t, a_t)$！怎么求导？
+
+祭出概率论里最精妙的**对数导数技巧（Log-Derivative Trick）**：$\nabla_\theta P_\theta(\tau) = P_\theta(\tau)\,\nabla_\theta \log P_\theta(\tau)$！代入求导：
+
+$$
+\begin{aligned}
+\nabla_\theta J(\theta) &= \sum_{\tau} \nabla_\theta P_\theta(\tau)\, R(\tau) \\
+&= \sum_{\tau} P_\theta(\tau)\, \nabla_\theta \log P_\theta(\tau)\, R(\tau) \\
+&= \mathbb{E}_{\tau \sim P_\theta}\Big[\, \nabla_\theta \log P_\theta(\tau)\, R(\tau) \,\Big]
+\end{aligned}
+$$
+
+现在把 $\log P_\theta(\tau)$ 展开成加法——**奇迹发生，所有与 $\theta$ 无关的环境转移概率 $\log p(s_{t+1}\mid s_t, a_t)$ 求导后统统变成 $0$！**
+
+$$
+\nabla_\theta \log P_\theta(\tau) = \nabla_\theta \left(\cancel{\log \rho_0(s_0)} + \sum_{t=0}^{T-1} \log \pi_\theta(a_t \mid s_t) + \sum_{t=0}^{T-1} \cancel{\log p(s_{t+1} \mid s_t, a_t)}\right) = \sum_{t=0}^{T-1} \nabla_\theta \log \pi_\theta(a_t \mid s_t)
+$$
+
+再去掉“未来动作不该影响过去奖励”的因果冗余项，立得**策略梯度定理（Policy Gradient Theorem）**与 **REINFORCE** 算法：
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\left[\sum_{t=0}^{T-1} \nabla_\theta \log \pi_\theta(A_t \mid S_t)\, G_t\right]
+$$
+
+**直观含义**：$\nabla_\theta \log \pi_\theta(A_t \mid S_t)$ 指向“提高动作 $A_t$ 概率”的参数方向；乘上这步之后拿到的回报 $G_t$——**高回报动作拼命推高概率，低回报动作压低概率**！
+
+### 🎬 Remotion 动作讲解：概率波包变形 × 参数山丘梯度攀登
+
+<MotionPlayer id="policy-gradient-morph" />
+
+---
+
+## 3. 为什么纯 REINFORCE 方差极大？基线 $b(s)$ 无偏性证明
+
+假设一个任务里所有轨迹的回报全是正数（比如在 $+95 \sim +105$ 之间）。如果不减基线，哪怕一条很差的轨迹拿了 `+95`，算法仍然拼命推高它的概率——只是比 `+105` 推得稍微慢一点而已！这导致采样梯度剧烈震荡、收敛奇慢。
+
+我们给 $G_t$ 减去任意**只依赖状态 $S_t$、不依赖动作 $A_t$** 的基线函数 $b(S_t)$（例如状态价值估计 $V(S_t)$）：
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\left[\sum_{t=0}^{T-1} \nabla_\theta \log \pi_\theta(A_t \mid S_t)\Big(G_t - b(S_t)\Big)\right]
+$$
+
+### 严格证明：减去 $b(s)$ 绝不改变梯度期望（零偏差！）
+
+考察多出来的那一项在状态 $s$ 上的期望：
+
+$$
+\begin{aligned}
+\mathbb{E}_{a \sim \pi_\theta(\cdot\mid s)}\Big[\nabla_\theta \log \pi_\theta(a \mid s)\, b(s)\Big]
+&= b(s) \sum_{a \in \mathcal{A}} \pi_\theta(a \mid s)\, \frac{\nabla_\theta \pi_\theta(a \mid s)}{\pi_\theta(a \mid s)} \\
+&= b(s)\, \nabla_\theta \left(\sum_{a \in \mathcal{A}} \pi_\theta(a \mid s)\right) = b(s)\, \nabla_\theta (1) \;=\; \mathbf{0} \quad \blacksquare
+\end{aligned}
+$$
+
+### ⛰️ 交互实验：亲眼对比有/无基线时 12 条随机采样梯度箭头的离散度
+
+<PolicyLandscapeLab />
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在策略梯度定理中，如果把基线 b(s) 换成同时依赖状态和动作的函数 b(s, a)（例如直接减去 Q(s, a)），梯度估计还是无偏的吗？',
+      options: ['依然严格无偏', '不再无偏！因为 b(s, a) 无法提到对动作 a 求和符号 ∑_a 的外面，无法得出 ∇_θ(1) = 0', '方差会直接降为 0', '梯度会变成原来的 2 倍'],
+      answerIndex: 1,
+      explanation: '无偏性证明的命门就在于 b(s) 与当前动作 a 无关，才能提出到 ∑_a 外面！这正是为什么我们用状态价值 V(s)（而非 Q(s,a)）作为基线，差值 Q(s,a) - V(s) 恰好就是优势函数 A(s,a)！',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：8.2 Actor-Critic 与广义优势估计 (GAE)" href="/docs/08-policy-gradient-ppo/02-actor-critic-gae" />
+  <Card title="下一节：8.2 Actor-Critic 与广义优势估计 (GAE)" href="/docs/08-policy-gradient-ppo/02-actor-critic-gae" description="引入评论家 Critic 实时估分替代高方差完整回报，推导出 PPO 标配的 GAE(γ, λ)！" />
 </Cards>

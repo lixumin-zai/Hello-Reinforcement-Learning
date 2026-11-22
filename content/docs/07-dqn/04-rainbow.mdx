@@ -6,24 +6,98 @@ icon: 'Rainbow'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { RainbowAblationLab } from '@/components/docs/07-dqn/RainbowAblationLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="18 分钟"
+  prereqs={['7.3 Double / Dueling / PER', '6.4 n 步自举']}
+  goals={[
+    '理解为什么预测完整回报分布 Z(s,a)（C51 分布式 RL）比只预测均值 Q(s,a) 提供更丰富的梯度信号',
+    '掌握 Noisy Nets 参数空间探索如何优雅替代手调 ε-greedy 衰减表',
+    '复盘 Rainbow 消融实验核心结论，并认清基于价值方法在连续动作空间中的根本天花板',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 抛弃单一标量均值：分布式强化学习（Distributional RL, C51）
+
+假设你在玩一款高风险动作游戏，有两条路：
+- **A 路**：100% 稳拿 `0` 分；
+- **B 路**：50% 概率暴赚 `+10` 分，50% 概率坠崖暴亏 `-10` 分。
+
+传统 DQN 只预测随机回报 $Z(s, a)$ 的**一阶期望均值** $Q(s, a) = \mathbb{E}[Z(s, a)]$——在传统 DQN 眼里，A 路和 B 路全是 `0.0` 分，**彻底抹杀了风险与多峰结构信息！**
+
+**C51（Categorical DQN, Bellemare et al., 2017）**直接把整个回报区间 $[V_{\min}, V_{\max}]$ 均匀离散成 **$N = 51$ 个支撑原子（Support Atoms）** $z_1, \dots, z_{51}$，让神经网络用 Softmax 输出每个动作在这 51 个原子上的**完整概率分布 $Z_\theta(s, a)$**！
+
+然后通过**分布式 Bellman 算子**将下一状态的分布先按 $\gamma$ 压缩、再按即时奖励 $r$ 平移，投影回 51 个固定原子支撑点，并用 **KL 散度（交叉熵损失）** 最小化目标分布与预测分布的距离：
+
+$$
+\mathcal{T} Z(s, a) \;\stackrel{D}{=}\; R(s, a) + \gamma \, Z(S', a^*), \qquad \mathcal{L}_{\text{C51}}(\theta) = D_{\text{KL}}\Big(\Phi\big(\mathcal{T} Z_{\theta^-}\big) \;\Big\|\; Z_\theta\Big)
+$$
+
+即使决策时依然只取分布均值 $Q(s,a) = \sum_i z_i p_i(s,a)$，仅仅因为训练损失变成了丰富的多分类分布匹配，网络表征学习变得异常稳定、梯度质量脱胎换骨！
+
+---
+
+## 2. Noisy Nets：把探索写进神经网络权重里
+
+传统 $\varepsilon$-greedy 在训练第 50 万步时，对已经极其熟悉的新手村和从未见过的最终 Boss 房使用**一刀切的相同 $\varepsilon$**。
+
+**Noisy Nets（Fortunato et al., 2018）**直接删掉了 $\varepsilon$-greedy，把线性层权重替换为**带可学习噪声标准差的参数层**：
+
+$$
+\mathbf{y} = (\boldsymbol{\mu}^w + \boldsymbol{\sigma}^w \odot \boldsymbol{\epsilon}^w)\mathbf{x} + (\boldsymbol{\mu}^b + \boldsymbol{\sigma}^b \odot \boldsymbol{\epsilon}^b)
+$$
+
+网络自己可以通过反向传播学出：在已经掌握的状态区域自动把噪声幅度 $\boldsymbol{\sigma}$ 压回 0，而在未知的新状态区域保持大噪声持续探索——实现**状态自适应的精细探索**！
+
+---
+
+## 3. Rainbow：六大改进的化学反应与消融启示
+
+2018 年 DeepMind 将 **Double + PER + Dueling + Multi-Step ($n=3$) + Noisy Nets + C51** 六大组件合体为 **Rainbow**，一举将 Atari 57 款游戏的样本效率与最终得分双双推上历史巅峰！
+
+### 🌈 交互实验：Rainbow 六组件消融板 × C51 双峰分布透视
+
+<RainbowAblationLab />
+
+<Callout type="info" title="Rainbow 消融实验留给工程师的三条黄金启示">
+  DeepMind 逐一拔掉六个组件做消融实验发现，**贡献排名前三的王牌组件**依次是：
+  1. **Multi-Step ($n=3$)**（加速早期信用回传，拔掉后初期学习慢一大截）；
+  2. **优先经验回放 (PER)**（大幅提升样本利用率）；
+  3. **分布式 RL (C51)**（显著拉高后期得分天花板！）。
 </Callout>
 
-## 核心知识点
+---
 
-- Noisy Nets 参数空间探索替代 ε-greedy
-- 分布式 RL (C51 / QR-DQN) 与 Cramér / Wasserstein 距离直觉
-- Rainbow 六大改进合体与消融实验启示
-- 基于价值方法面对高维连续动作的根本局限
+## 4. 基于价值方法（DQN 家族）的根本天花板
 
-## 规划交互
+尽管 Rainbow 在离散动作的 Atari 上所向披靡，但它依赖一个核心操作：$\arg\max_{a \in \mathcal{A}} Q_\theta(s, a)$。试想以下两个现代核心场景：
 
-- **`<RainbowAblationLab />`**：Rainbow 六组件消融实验板：勾选不同改进组合，查看 C51 多峰回报分布投影与各组件对样本效率的贡献拆解
+1. **人形机器人 29 个关节的连续力矩控制**：动作是 $\mathbb{R}^{29}$ 里的连续实数向量，根本没法遍历所有动作去求 $\arg\max$！
+2. **大语言模型（词表大小 $|\mathcal{V}| = 150{,}000$）与随机混合策略博弈**（如石头剪刀布，最优策略本身必须是随机的）：确定性 $\arg\max$ 天然无能为力。
+
+要想彻底突破这两座大山，我们需要跨入另一条同样波澜壮阔的主干道——**第 8 章：直接对参数化策略 $\pi_\theta(a \mid s)$ 求梯度的策略梯度与 PPO！**
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 Rainbow DQN 的消融实验中，哪三项改进对整体样本效率与最终性能的贡献最为突出？',
+      options: ['仅 Double DQN', 'Multi-Step 多步回报、优先经验回放 (PER) 与分布式 RL (C51)', '仅把网络层数加深到 100 层', '仅增大批大小 Batch Size'],
+      answerIndex: 1,
+      explanation: '论文消融曲线清晰表明：拔掉 Multi-Step、PER 或 C51 中的任意一个都会导致 Atari 中位数得分断崖式下跌。',
+    },
+    {
+      question: '为什么基于价值的 DQN 家族很难直接应用于连续高维动作控制（如 20 自由度机械臂）？',
+      options: ['因为神经网络不能输出小数', '因为每一步决策和计算 TD 目标都需要求解 max_a Q(s, a)，在连续高维动作空间里每步求解全局非凸最大值代价高昂', '因为连续环境没有奖励函数', '因为经验回放池不能存浮点数'],
+      answerIndex: 1,
+      explanation: '对离散 4–18 个动作遍历求 max 只需微秒；对连续动作空间求 max_a Q(s,a) 自身就是一个复杂的非凸优化问题——因此连续控制转向第 8 章的策略梯度/PPO 与第 9 章的 Actor-Critic (TD3/SAC)。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：第 8 章：策略梯度、Actor-Critic 与 PPO" href="/docs/08-policy-gradient-ppo" />
+  <Card title="进入第 8 章：策略梯度、Actor-Critic 与 PPO ⚖️" href="/docs/08-policy-gradient-ppo" description="先用键盘挑战倒立摆 CartPole 平衡，再逐行推导策略梯度定理、GAE、KL 信赖域与 PPO-Clip！" />
 </Cards>

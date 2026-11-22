@@ -6,29 +6,102 @@ icon: 'Spline'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { MountainCarGame } from '@/components/docs/07-dqn/MountainCarGame';
+import { DeadlyTriadSwitch } from '@/components/docs/07-dqn/DeadlyTriadSwitch';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="24 分钟"
+  prereqs={['第 6 章 TD 与 Q-learning', '梯度下降 SGD']}
+  goals={[
+    '亲手驾驶山地车感受连续状态空间的不可枚举性，理解参数化近似与泛化的必要',
+    '理解为什么半梯度 TD 不是真正的梯度下降，却在线性在策略下仍能收敛',
+    '吃透致命三元组 (Deadly Triad) 触发权重发散的深层原因，为 DQN 做好铺垫',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 先当一次山地车司机：感受连续状态空间
+
+在前面 6 章里，我们的状态总能塞进一张有限二维数组 `Q[state][action]`。现在请你驾驶下面这辆**经典物理山地车（Mountain Car）**：它的状态是两个连续实数——位置 $x \in [-1.2, 0.6]$ 和速度 $v \in [-0.07, 0.07]$。
+
+先点击「**亲自驾驶**」并按住向右加速试试——你会发现汽车引擎动力远远敌不过重力，根本冲不上山顶，必须**先倒车爬上左坡蓄势、再顺势荡过右峰**；然后再点击「**RL 能量泵接管**」，同时紧盯右侧的**相空间 $(x, v)$ 能量螺旋**：
+
+<MountainCarGame />
+
+---
+
+## 2. 从查表到参数化函数近似：$\hat{v}(s, \mathbf{w})$
+
+在连续状态空间里，哪怕每走一步都把实数坐标精确记下来，几乎**永远不会两次落到完全相同的浮点坐标上**。因此我们必须放弃查表，改用一个参数向量 $\mathbf{w} \in \mathbb{R}^d$（$d \ll |\mathcal{S}|$）构建**参数化价值函数** $\hat{v}(s, \mathbf{w}) \approx v_\pi(s)$。
+
+### 均方价值误差（Mean Squared Value Error, $\overline{\text{VE}}$）
+
+我们无法在所有无穷个状态上同时做到 0 误差，只能按策略访问状态分布 $\mu(s)$ 加权最小化误差：
+
+$$
+\overline{\text{VE}}(\mathbf{w}) \;\doteq\; \sum_{s \in \mathcal{S}} \mu(s)\Big[\, v_\pi(s) - \hat{v}(s, \mathbf{w}) \,\Big]^2
+$$
+
+对其做随机梯度下降（SGD），一步更新规则为：
+
+$$
+\mathbf{w}_{t+1} = \mathbf{w}_t + \alpha\Big[\, U_t - \hat{v}(S_t, \mathbf{w}_t) \,\Big]\, \nabla_{\mathbf{w}} \hat{v}(S_t, \mathbf{w}_t)
+$$
+
+- 当目标 $U_t = G_t$（**梯度蒙特卡洛**）时，$G_t$ 是真值 $v_\pi(S_t)$ 的无偏估计且不依赖 $\mathbf{w}_t$，这是货真价实的 SGD；
+- 当目标 $U_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, \mathbf{w}_t)$（**半梯度 TD(0)**）时，目标 $U_t$ 自己也依赖参数 $\mathbf{w}_t$，但求导时我们故意把它当常数不求导（只取了一半梯度！），因此得名**半梯度方法（Semi-Gradient Method）**。
+
+---
+
+## 3. 线性近似与瓦片编码（Tile Coding）
+
+最稳健且拥有收敛保证的参数化形式是**线性价值函数**：先构造特征向量 $\mathbf{x}(s) \in \mathbb{R}^d$，令 $\hat{v}(s, \mathbf{w}) = \mathbf{w}^\top \mathbf{x}(s)$（此时梯度极简：$\nabla_{\mathbf{w}} \hat{v}(s, \mathbf{w}) = \mathbf{x}(s)$）。
+
+在山地车这类低维连续控制中，**瓦片编码（Tile Coding）**效果奇佳：把 2D 相空间 $(x, v)$ 盖上多层彼此微微错位的粗网格（称为 Tilings）。任意连续状态点在每一层刚好激活 1 块瓦片，于是相近的状态共享大部分激活瓦片（**局部泛化**），同时多层错位叠加又提供了极高的有效分辨率！
+
+### 🎬 Remotion 动作讲解：Mountain Car 物理摆荡 × 重叠瓦片相空间遥测
+
+<MotionPlayer id="mountain-car-telemetry" />
+
+---
+
+## 4. 深度强化学习的头号梦魇：致命三元组（The Deadly Triad）
+
+如果线性半梯度 TD 在策略下很稳，为什么把表格 Q-learning 直接换成深度神经网络，几乎 100% 当场训练崩溃、Q 值飙到 $10^{30}$？
+
+Sutton & Barto 总结了强化学习中最著名的警示——**致命三元组（Deadly Triad）**：只要以下三个要素**同时出现**，价值函数估计就有**指数发散**的风险（哪怕是最简单的线性网络！）：
+
+1. **函数近似（Function Approximation）**：不同状态共享同一套权重 $\mathbf{w}$，更新一个状态会连带改变其他状态的预测；
+2. **自举（Bootstrapping）**：用网络自己的估计 $\gamma \hat{v}(S', \mathbf{w})$ 构造更新目标（TD / Q-learning）；
+3. **离策略训练（Off-Policy Training）**：采样数据分布 $d^b(s)$ 偏离目标策略分布 $d^\pi(s)$。
+
+### ☢️ 交互实验：亲手拨动三元组开关，触发 Baird 反例权重爆炸！
+
+<DeadlyTriadSwitch />
+
+<Callout type="important" title="这就是下一节 DQN 诞生的历史使命">
+  请记住：把 Q-learning（自举 + 离策略）与深度卷积网络（非线性函数近似）结合起来，刚好踩中了**致命三元组的全部三个雷区**！DeepMind 2015 年发在 Nature 的 **DQN** 之所以石破天惊，正是用两项简洁的工程稳压器驯服了这个三元组。
 </Callout>
 
-## 核心知识点
+---
 
-- 从查表到参数化近似 v̂(s, w) 与均方价值误差
-- 半梯度 TD(0) 为什么不是真正的梯度下降
-- 瓦片编码 (Tile Coding) 与粗编码的局部泛化特性
-- 致命三元组 (Deadly Triad)：函数近似 + 自举 + 离策略
-
-## 规划交互
-
-- **`<MountainCarGame />`**：真实物理小游戏《山地车 Mountain Car》：键盘 ←/→ 亲自驾驶体验倒车蓄力，一键切换瓦片编码 RL 策略冲顶并查看 2D (位置×速度) 价值热力曲面
-- **`<DeadlyTriadSwitch />`**：致命三元组三开关实验台：拨动「函数近似」「自举」「离策略」开关，复现 Baird 7 状态星形反例权重发散曲线
-
-## 规划动效
-
-- 🎬 **`mountain-car-telemetry`**：工程遥测仪表盘风：左侧山地车真实物理摆荡爬坡，右侧瓦片编码多层网格点亮与相空间螺旋轨迹同步绘制
+<QuizBox
+  questions={[
+    {
+      question: '为什么半梯度 TD(0) 的更新被称为“半梯度 (Semi-Gradient)”？',
+      options: ['因为每次只更新一半的神经网络层', '因为 TD 目标 R_{t+1} + γ v̂(S_{t+1}, w) 本身也含参数 w，但我们在求梯度时故意把它视为常数冻结、不对其反向传播', '因为学习率 α 乘了 0.5', '因为只使用了状态特征的一半维度'],
+      answerIndex: 1,
+      explanation: '在 PyTorch 实现 DQN 时，我们必须对目标值调用 .detach() 或置于 torch.no_grad() 下，在代码上体现的正是“半梯度”！',
+    },
+    {
+      question: '以下哪一种组合会完整触发「致命三元组 (Deadly Triad)」导致潜在发散风险？',
+      options: ['表格型 Q-learning（无函数近似）', '神经网络 + 蒙特卡洛回报 G_t（无自举）', '神经网络 + 离策略单步 Q-learning（函数近似 + 自举 + 离策略）', '线性在策略 SARSA（非离策略）'],
+      answerIndex: 2,
+      explanation: '只有当函数近似、自举与离策略三者同时集齐时，才会触发致命三元组。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：7.2 DQN：经验回放与目标网络" href="/docs/07-dqn/02-dqn-core" />
+  <Card title="下一节：7.2 DQN：经验回放与目标网络" href="/docs/07-dqn/02-dqn-core" description="用环形回放池打乱时间相关性、用冻结目标网络稳住移动靶子，附完整 PyTorch DQN 核心代码！" />
 </Cards>

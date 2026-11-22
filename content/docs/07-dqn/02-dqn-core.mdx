@@ -6,28 +6,135 @@ icon: 'Cpu'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { DQNPipelineLab } from '@/components/docs/07-dqn/DQNPipelineLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="24 分钟"
+  prereqs={['7.1 致命三元组', 'PyTorch 基础']}
+  goals={[
+    '彻底看懂 DQN 的损失函数与卷积输入预处理设计（4 帧堆叠）',
+    '理解「经验回放缓冲区」与「冻结目标网络」如何分别化解时间相关性与移动靶子震荡',
+    '掌握可直接运行的完整 PyTorch DQN 训练主循环代码',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 深度强化学习元年：直接从像素学会 49 款 Atari 游戏
+
+2013/2015 年 DeepMind 发表的 **DQN（Deep Q-Network）** 实现了人工智能史上的标志性跨越：**不给任何手工特征，直接把 $84 \times 84 \times 4$ 的原始游戏像素画面塞进卷积神经网络，端到端输出每个按键动作的 $Q_\theta(s, a)$ 值！**
+
+DQN 网络结构有一个极其聪明的设计细节：不是把 $(s, a)$ 拼在一起输入网络每次只输出 1 个标量，而是**只输入状态 $s$，一次性并行输出所有 $|\mathcal{A}|$ 个动作的 Q 值向量** $[Q_\theta(s, a_1), \dots, Q_\theta(s, a_{|\mathcal{A}|})]$——一次前向传播就能立刻算出 $\max_{a'} Q(s', a')$！
+
+---
+
+## 2. 驯服致命三元组的两大核心稳压器
+
+### 稳压器 ①：经验回放缓冲区（Experience Replay Buffer）
+
+- **痛点**：游戏连续帧 $S_t, S_{t+1}, S_{t+2}$ 几乎一模一样，破坏 SGD 的 i.i.d. 假设；且每条样本用完即丢，极其浪费。
+- **解法**：开辟一个容量 $N \approx 10^5 \sim 10^6$ 的环形队列 $\mathcal{D}$，不断存入 $(s_t, a_t, r_t, s_{t+1}, \text{done}_t)$。每次训练时，从池中**均匀随机抽取 Mini-Batch**（如 32 或 64 条来自不同回合、不同时刻的样本）计算梯度！
+- **收益**：彻底打乱时间相关性 + 单条宝贵经验可被反复学习数十次，数据效率倍增！
+
+### 稳压器 ②：冻结目标网络（Frozen Target Network）
+
+- **痛点**：如果 TD 目标 $y_j = r_j + \gamma \max_{a'} Q_\theta(s'_j, a')$ 用的是**同一套正在更新的权重 $\theta$**，那么每做一次梯度下降把 $Q_\theta(s, a)$ 往上拉时，相邻相似状态的 $Q_\theta(s', a')$ 也被顺带往上抬了——目标跟着跑，引发螺旋震荡！
+- **解法**：克隆一份结构完全相同的**目标网络 $Q_{\theta^-}$** 专门负责计算 TD 目标（且严格 `torch.no_grad()` 不反传梯度）：
+  $$
+  y_j = \begin{cases}
+  r_j, & \text{若 } s'_j \text{ 为终止状态} \\
+  r_j + \gamma \max_{a'} Q_{\theta^-}(s'_j, a'), & \text{非终止状态}
+  \end{cases}
+  $$
+  $$
+  \mathcal{L}(\theta) = \mathbb{E}_{(s,a,r,s') \sim \mathcal{D}}\Big[\,\big(y_j - Q_\theta(s_j, a_j)\big)^2\,\Big]
+  $$
+- **同步策略**：
+  - **硬更新（Hard Update，原版 DQN）**：每训练 $C$ 步（如 $10{,}000$ 步）全量拷贝一次 $\theta^- \leftarrow \theta$；
+  - **软更新（Polyak Averaging，现代更常用）**：每步微幅滑动平均 $\theta^- \leftarrow \tau \theta + (1 - \tau)\theta^-$（$\tau \approx 0.005$），曲线更加丝滑！
+
+### 🎬 Remotion 动作讲解：DQN 工业级数据流水线
+
+<MotionPlayer id="dqn-industrial-pipeline" />
+
+### 🧠 交互实验：亲手操作环形回放队列 & 开关冻结目标网络
+
+<DQNPipelineLab />
+
+---
+
+## 3. 干净可运行的 PyTorch DQN 核心训练代码（CartPole / Atari 通用）
+
+```python
+import random
+from collections import deque
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class QNetwork(nn.Module):
+    def __init__(self, obs_dim: int, act_dim: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim, 128), nn.ReLU(),
+            nn.Linear(128, 128), nn.ReLU(),
+            nn.Linear(128, act_dim),
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+def dqn_train_step(q_net, target_net, optimizer, replay_buffer, batch_size=64, gamma=0.99, tau=0.005):
+    if len(replay_buffer) < batch_size:
+        return None
+    batch = random.sample(replay_buffer, batch_size)
+    s, a, r, ns, done = zip(*batch)
+
+    s = torch.tensor(s, dtype=torch.float32)
+    a = torch.tensor(a, dtype=torch.long).unsqueeze(1)
+    r = torch.tensor(r, dtype=torch.float32).unsqueeze(1)
+    ns = torch.tensor(ns, dtype=torch.float32)
+    done = torch.tensor(done, dtype=torch.float32).unsqueeze(1)
+
+    # 1. 在线网络计算当前选中动作的 Q_θ(s, a)
+    q_pred = q_net(s).gather(1, a)
+
+    # 2. 冻结目标网络计算 TD 目标 y（注意严格 no_grad，保持半梯度！）
+    with torch.no_grad():
+        max_next_q = target_net(ns).max(dim=1, keepdim=True)[0]
+        target_y = r + gamma * (1.0 - done) * max_next_q
+
+    # 3. Huber Loss (SmoothL1) 比纯 MSE 对极端离群 TD 误差更稳健
+    loss = F.smooth_l1_loss(q_pred, target_y)
+    optimizer.zero_grad()
+    loss.backward()
+    nn.utils.clip_grad_norm_(q_net.parameters(), 10.0)
+    optimizer.step()
+
+    # 4. Polyak 软更新目标网络 θ⁻ ← τθ + (1-τ)θ⁻
+    with torch.no_grad():
+        for p, tp in zip(q_net.parameters(), target_net.parameters()):
+            tp.data.mul_(1.0 - tau).add_(tau * p.data)
+    return float(loss.item())
+```
+
+<Callout type="warn" title="PyTorch 工程实战两大细节">
+  1. **用 `SmoothL1Loss (Huber Loss)` 替代纯 MSE**：早期 TD 误差可能很大，平方梯度会把网络炸飞，Huber Loss 在误差 $>1$ 时变为线性梯度，等效于天然梯度裁剪；
+  2. **区分 `terminated` 与 `truncated`**：在 Gymnasium 新标准中，只有真正死掉/到达终点 (`terminated=True`) 时才乘 `(1 - done)` 屏蔽未来价值！如果只是因为步数到了 500 步上限被强制截断 (`truncated=True`)，未来价值并非 0，屏蔽掉反而会制造人为边界偏差！
 </Callout>
 
-## 核心知识点
+---
 
-- 深度 Q 网络损失函数与端到端像素输入预处理
-- 经验回放缓冲区 (Experience Replay) 打破时间相关性
-- 目标网络 (Target Network) 冻结移动靶子与软更新 Polyak 平均
-- 完整 PyTorch DQN 核心训练循环代码
-
-## 规划交互
-
-- **`<DQNPipelineLab />`**：DQN 训练流水线交互解剖台：单步采集写入环形 Replay Buffer、随机抽取 Mini-batch 高亮打乱相关性、切换有/无 Target Net 对比 Loss 震荡
-
-## 规划动效
-
-- 🎬 **`dqn-industrial-pipeline`**：工程流水线风：画面帧 → 卷积特征 → Q 值决策 → 环形缓冲区转盘 → 随机采样 Batch → 在线网梯度更新与目标网周期权重拷贝
+<QuizBox
+  questions={[
+    {
+      question: '为什么在 DQN 里不能把经验回放池 (Replay Buffer) 直接拿来给在策略算法 (如 SARSA 或标准 PPO) 使用？',
+      options: ['因为回放池太占内存', '因为回放池里存的是过去旧策略收集的经验，与当前最新策略分布不同，直接复用违反在策略假设（除非引入离策略校正或截断）', '因为 SARSA 不能用神经网络', '因为回放池只能存图像'],
+      answerIndex: 1,
+      explanation: 'Q-learning 本身是离策略的（目标里取 max 与历史行为策略无关），因此天然兼容经验回放池；在策略算法必须丢弃过旧策略的数据。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：7.3 Double DQN、Dueling 网络与优先经验回放 (PER)" href="/docs/07-dqn/03-double-dueling-per" />
+  <Card title="下一节：7.3 Double DQN、Dueling 网络与优先经验回放 (PER)" href="/docs/07-dqn/03-double-dueling-per" description="如何只改一行代码变身 Double DQN？直道与弯道场景看懂 Dueling 架构的精妙解耦！" />
 </Cards>

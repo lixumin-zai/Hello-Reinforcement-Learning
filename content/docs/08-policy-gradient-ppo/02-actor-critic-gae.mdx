@@ -6,28 +6,108 @@ icon: 'Drama'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { GAESpectrumLab } from '@/components/docs/08-policy-gradient-ppo/GAESpectrumLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="22 分钟"
+  prereqs={['8.1 策略梯度定理与基线', '6.4 TD(λ) 与 λ-回报']}
+  goals={[
+    '理解如何把带基线的 REINFORCE 升级为每步可更新、低方差的 Actor-Critic',
+    '掌握广义优势估计 GAE(γ, λ) 的递推定义及其在 λ=0 与 λ=1 时的特例',
+    '理解熵正则项 H(π_θ) 在防止策略过早塌缩中的关键作用',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. 从 REINFORCE 到 Actor-Critic：为什么请一位专业评论家？
 
-## 核心知识点
+尽管加了基线 $V_\phi(S_t)$，REINFORCE 依然在用**整条回合的蒙特卡洛回报 $G_t$** 来衡量动作好坏（$G_t - V_\phi(S_t)$）：必须等回合结束、且包含整条长轨迹累加的高方差噪声！
 
-- 从 REINFORCE with Baseline 到单步 Actor-Critic (TD 残差)
-- A2C / A3C 同步与异步并行采样架构
-- 广义优势估计 GAE(γ, λ) 的指数加权递推推导
-- 熵正则项 H(π) 防止策略过早塌缩
+借鉴第 6 章的时序差分自举思想，把完整回报 $G_t$ 替换成单步 TD 目标 $R_{t+1} + \gamma V_\phi(S_{t+1})$，那么优势函数的估计值瞬间变成了我们最熟悉的老朋友——**TD 误差 $\delta_t$**：
 
-## 规划交互
+$$
+\hat{A}_t^{(1)} = \delta_t \;\doteq\; R_{t+1} + \gamma V_\phi(S_{t+1}) - V_\phi(S_t)
+$$
 
-- **`<GAESpectrumLab />`**：GAE(γ, λ) 权重光谱交互台：输入每步 TD 误差 δ_t，拖动 γ 和 λ 实时计算各步权重、优势估值以及 λ=0 (TD) 到 λ=1 (MC) 的过渡
+于是整个系统自然分工为两位并肩作战的伙伴——**Actor-Critic（演员-评论家）**：
+- **演员（Actor $\pi_\theta$）**：负责根据状态 $S_t$ 表演动作 $A_t$，并听从评论家给出的优势打分 $\hat{A}_t$ 沿梯度上升更新 $\theta$；
+- **评论家（Critic $V_\phi$）**：负责观察世界反馈、拟合真实状态价值，最小化均方 TD 误差 $(R_{t+1} + \gamma V_\phi(S_{t+1}) - V_\phi(S_t))^2$。
 
-## 规划动效
+### 🎬 Remotion 动作讲解：Actor-Critic 双环共舞
 
-- 🎬 **`actor-critic-duet`**：双环矢量共舞风：Actor 采样动作与环境交互，Critic 计算 TD 优势 Â_t 后分两路同步驱动策略网络与价值网络更新
+<MotionPlayer id="actor-critic-duet" />
+
+---
+
+## 2. 广义优势估计 GAE($\gamma, \lambda$) 推导：PPO 的黄金搭档
+
+单步 TD 优势 $\delta_t$ 方差极低，但如果 Critic 网络 $V_\phi$ 在训练初期还估不准，会引入较大偏差；而完整蒙特卡洛优势 $G_t - V_\phi(S_t)$ 零偏差，方差又太大。
+
+Schulman 等人（2015）把 6.4 节的 **$\lambda$-回报** 思想移植到优势估计上，提出**广义优势估计（Generalized Advantage Estimation, GAE）**！先看 $k$ 步截断优势如何巧妙地化简为**连续 $k$ 个单步 TD 误差的折扣望远镜和**：
+
+$$
+\begin{aligned}
+\hat{A}_t^{(1)} &= \delta_t \\
+\hat{A}_t^{(2)} &= R_{t+1} + \gamma R_{t+2} + \gamma^2 V(S_{t+2}) - V(S_t) = \delta_t + \gamma \delta_{t+1} \\
+\hat{A}_t^{(k)} &= \sum_{l=0}^{k-1} \gamma^l \delta_{t+l}
+\end{aligned}
+$$
+
+对所有 $k = 1, 2, \dots$ 步优势按几何权重 $(1 - \lambda)\lambda^{k-1}$ 求加权平均，化简即得无比简洁的 **GAE 公式**：
+
+$$
+\hat{A}_t^{\text{GAE}(\gamma, \lambda)} \;\doteq\; (1 - \lambda)\sum_{k=1}^{\infty} \lambda^{k-1}\hat{A}_t^{(k)} \;=\; \sum_{l=0}^{\infty} (\gamma \lambda)^l \, \delta_{t+l}
+$$
+
+- **当 $\lambda = 0$**：$\hat{A}_t^{\text{GAE}} = \delta_t$（纯单步 TD，最低方差）；
+- **当 $\lambda = 1$**：$\hat{A}_t^{\text{GAE}} = \sum_{l=0}^\infty \gamma^l \delta_{t+l} = G_t - V_\phi(S_t)$（纯蒙特卡洛优势，零偏差）；
+- **工程黄金默认值**：$\gamma = 0.99, \;\lambda = 0.95$，并用极其高效的**反向循环** 4 行代码算完整个 Rollout：
+
+```python
+def compute_gae(rewards, values, dones, gamma=0.99, lam=0.95):
+    """values 长度为 T+1（末尾包含 bootstrap V(S_T)），O(T) 反向递推算出 GAE 优势"""
+    T = len(rewards)
+    advantages = [0.0] * T
+    gae = 0.0
+    for t in reversed(range(T)):
+        mask = 0.0 if dones[t] else 1.0
+        delta = rewards[t] + gamma * values[t + 1] * mask - values[t]
+        gae = delta + gamma * lam * mask * gae
+        advantages[t] = gae
+    return advantages
+```
+
+### 🎛️ 交互实验：亲手调节 $\gamma$ 与 $\lambda$，观察 GAE 权重光谱
+
+<GAESpectrumLab />
+
+---
+
+## 3. 熵正则项（Entropy Bonus）：防止 Actor 过早失去好奇心
+
+如果 Actor 在训练早期偶然靠某个动作拿到一次高分，策略梯度很容易把它迅速推向确定性（$\pi_\theta(a\mid s) \to 1$），从此停止探索——这叫**熵塌缩（Entropy Collapse）**。
+
+标准做法是在目标函数中加上策略分布的**香农熵奖励**：
+
+$$
+\mathcal{H}\big(\pi_\theta(\cdot \mid s)\big) = -\sum_{a \in \mathcal{A}} \pi_\theta(a \mid s)\log \pi_\theta(a \mid s), \qquad J_{\text{total}}(\theta) = J(\theta) + c_{\text{ent}}\, \mathbb{E}_s\big[\mathcal{H}(\pi_\theta(\cdot \mid s))\big]
+$$
+
+熵系数 $c_{\text{ent}}$（通常 $0.001 \sim 0.02$）温和地鼓励策略保持适度随机性，避免过早锁死在局部次优动作上。
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 GAE(γ, λ) 中，当把 λ 从 0.95 调小到 0.0 时，优势估计的偏差和方差会如何变化？',
+      options: ['偏差增大（更依赖 Critic 的自举估值）、方差显著减小', '偏差减小、方差增大', '偏差和方差同时变成 0', '完全不影响结果'],
+      answerIndex: 0,
+      explanation: 'λ = 0 退化为单步 TD 残差 δ_t：只需向前看 1 步（方差极低），但高度依赖 Critic V_φ(S_{t+1}) 的准确性（初始偏差偏大）。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：8.3 步子迈大会崩溃：信赖域与 TRPO" href="/docs/08-policy-gradient-ppo/03-trust-region-trpo" />
+  <Card title="下一节：8.3 步子迈大会崩溃：信赖域与 TRPO" href="/docs/08-policy-gradient-ppo/03-trust-region-trpo" description="为什么监督学习里步长太大顶多震荡一下，而 RL 里一步走歪就能让整个训练彻底毁掉？" />
 </Cards>

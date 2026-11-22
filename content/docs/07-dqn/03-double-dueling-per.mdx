@@ -6,24 +6,105 @@ icon: 'GitBranch'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { DuelingCarViz } from '@/components/docs/07-dqn/DuelingCarViz';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={4}
+  time="20 分钟"
+  prereqs={['6.3 Double Q-learning', '7.2 DQN 核心']}
+  goals={[
+    '记住 Double DQN 相比原版 DQN 只需改写 1 行代码的极简实现',
+    '理解 Dueling 架构为何必须减去 mean(A) 以消除可辨识性 (Identifiability) 退化',
+    '掌握优先经验回放 (PER) 的采样概率公式及为何必须乘重要性采样权重 w_i',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★★☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. Double DQN：只改一行代码，根治深度 Q 网络高估
 
-## 核心知识点
+在 6.3 节我们知道 $\max$ 算子会造成最大化偏差；在深度神经网络里，近似误差进一步放大了这种高估——原版 DQN 训练时经常出现 Q 值虚高到离谱、真实游戏得分反而暴跌的现象。
 
-- Double DQN 极简改动：在线网选动作、目标网估值
-- Dueling 架构 Q = V(s) + (A(s,a) - mean A) 与可辨识性
-- 优先经验回放 (PER)：按 |δ_i|^α 采样与重要性采样权重修正
-- SumTree O(log N) 高效采样结构
+好消息是：DQN 手里**现成就有两套独立滞后的网络权重**：在线网络 $\theta$ 和目标网络 $\theta^-$！**Double DQN (van Hasselt et al., 2016)** 直接复用它们解耦“选动作”与“估值”：
 
-## 规划交互
+- **原版 DQN 目标**：
+  $$
+  y^{\text{DQN}} = r + \gamma \, Q_{\theta^-}\Big(s', \;\arg\max_{a'} Q_{\theta^-}(s', a')\Big)
+  $$
+- **Double DQN 目标（用在线网 $\theta$ 挑动作，用目标网 $\theta^-$ 估值！）**：
+  $$
+  y^{\text{DDQN}} = r + \gamma \, Q_{\theta^-}\Big(s', \;\arg\max_{a'} Q_{\theta}(s', a')\Big)
+  $$
 
-- **`<DuelingCarViz />`**：Dueling 网络直道/弯道情景可视化：对比前方无障碍直道（仅需 V(s)）与迎面来车变道（A(s,a) 剧烈分化）的价值合成
+在 PyTorch 里真的就是**改 1 行代码**：
+```python
+with torch.no_grad():
+    best_actions = q_net(ns).argmax(dim=1, keepdim=True)            # 在线网选动作
+    next_q = target_net(ns).gather(1, best_actions)                 # 目标网评估价值
+    target_y = r + gamma * (1.0 - done) * next_q
+```
+
+---
+
+## 2. Dueling DQN：把“状态好不好”和“动作好不好”拆成两条流
+
+想象你在玩一款高速公路赛车游戏：绝大多数时间里前方一马平川，无论此时往左微调、直行还是往右微调，几乎都没什么区别——决定你得分高低的纯粹是**当前路况本身 $V(s)$**；只有当正前方突然杀出一辆逆行大卡车时，**各动作之间的相对差异 $A(s, a)$** 才瞬间变得生死攸关！
+
+**Dueling 架构（Wang et al., 2016）**在卷积特征层之后把网络分叉为两条独立分支：
+- 一条输出标量状态价值 $V_\theta(s)$；
+- 一条输出各动作相对优势 $A_\theta(s, a)$；
+- 最后用**去均值聚合公式**合成最终的 $Q$ 值：
+
+$$
+Q_\theta(s, a) \;=\; V_\theta(s) \;+\; \left(A_\theta(s, a) - \frac{1}{|\mathcal{A}|}\sum_{a' \in \mathcal{A}} A_\theta(s, a')\right)
+$$
+
+> **为什么要减去均值 $\frac{1}{|\mathcal{A}|}\sum A_\theta(s, a')$？**  
+> 如果直接写成 $Q = V + A$，那么把 $V$ 加上 $100$、把所有 $A$ 同时减去 $100$，得到的 $Q$ 一模一样！神经网络无法唯一辨识哪部分是 $V$、哪部分是 $A$（不可辨识性），导致训练震荡。减去均值强制优势之和恒为 $0$，立刻锁定了唯一分解，并且每更新一次任意动作都会顺带把公共的 $V(s)$ 泛化给所有动作！
+
+### 🔀 交互实验：直道 vs 前方来车，亲手验证 Dueling 解耦
+
+<DuelingCarViz />
+
+---
+
+## 3. 优先经验回放（Prioritized Experience Replay, PER）
+
+均匀抽样回放池有一个明显的浪费：95% 的画面都是枯燥的平庸常规帧（TD 误差几乎为 0，网络早就学会了），而真正改变战局的“关键吃分瞬间”或“意外死亡瞬间”（TD 误差 $|\delta_i|$ 极大）却和废片享有完全一样的低抽样率！
+
+**PER（Schaul et al., 2016）**按样本的绝对 TD 误差大小赋予优先级 $p_i = |\delta_i| + \epsilon$，采样概率设为：
+
+$$
+P(i) = \frac{p_i^\alpha}{\sum_k p_k^\alpha} \qquad (\alpha \in [0, 1],\;\; \alpha=0 \text{ 退化为均匀采样})
+$$
+
+### ⚠️ 别忘了修正采样偏差！
+
+按 TD 误差偏置抽样改变了梯度的期望分布，容易过拟合极端噪声样本！因此必须在损失函数中给每条采样到的样本乘上**重要性采样权重（IS Weight）**：
+
+$$
+w_i = \left(\frac{1}{N} \cdot \frac{1}{P(i)}\right)^\beta, \qquad \tilde{w}_i = \frac{w_i}{\max_j w_j}
+$$
+
+训练初期 $\beta$ 从 $0.4$ 线性退火到末期的 $1.0$（保证收敛末端严格无偏），工程上用 **SumTree（线段树）** 可以在 $O(\log N)$ 时间内完成百万级样本的按权重抽样与优先级刷新！
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 Dueling DQN 中，如果我们把聚合层从 Q = V + (A - mean A) 改成直接相加 Q = V + A，会发生什么问题？',
+      options: ['网络参数量会翻倍', '出现不可辨识性（V+c 与 A-c 给出完全相同的 Q），V 和 A 无法稳定学习各自应有的语义，训练容易震荡', '无法计算反向传播梯度', '无法处理离散动作'],
+      answerIndex: 1,
+      explanation: '去均值操作强制平均优势为 0，在保证可微且梯度的方差更小的同时，彻底消除了 V 与 A 之间的平移自由度。',
+    },
+    {
+      question: '为什么优先经验回放 (PER) 需要引入退火指数 β 来计算重要性采样权重 w_i？',
+      options: ['为了加快前向推理速度', '因为非均匀按 |δ_i| 抽样改变了数据分布，必须用 IS 权重抵消梯度偏差以保证收敛稳定性', '为了防止奖励变成负数', '因为 SumTree 只能存权重'],
+      answerIndex: 1,
+      explanation: '高优先级样本被频繁重复回播，若不按 1/P(i)^β 缩小其步长权重，网络会在少数极端样本上严重过拟合。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：7.4 分布式 RL (C51) 与 Rainbow 集大成" href="/docs/07-dqn/04-rainbow" />
+  <Card title="下一节：7.4 分布式 RL (C51) 与 Rainbow 集大成" href="/docs/07-dqn/04-rainbow" description="看懂预测完整回报概率分布的威力，并复盘 Rainbow 六组件消融实验规律！" />
 </Cards>
