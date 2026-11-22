@@ -6,28 +6,145 @@ icon: 'Sigma'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { BellmanCellDissector } from '@/components/docs/03-mdp-bellman/BellmanCellDissector';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={3}
+  time="25 分钟"
+  prereqs={['3.2 回报递归式 G_t = R_{t+1} + γ G_{t+1}', '矩阵求逆基础']}
+  goals={[
+    '彻底分清状态价值 v_π(s)、动作价值 q_π(s,a) 与优势函数 A_π(s,a) 的语义与互转关系',
+    '一步不漏推导出 Bellman 期望方程，并用 NumPy 写出线性矩阵闭式解 (I - γP^π)⁻¹R^π',
+    '理解 Bellman 最优方程以及为何无模型算法钟爱 q_* 而非 v_*',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 价值函数家族：$v_\pi$、$q_\pi$ 与 $A_\pi$
+
+单条轨迹的回报 $G_t$ 是个随机变量（取决于策略的随机抽样和环境的随机转移）。要想评判一个状态或一个动作到底“有多好”，我们对回报取**期望**，便得到强化学习的三大核心价值函数（全部绑定在某个给定策略 $\pi$ 上）：
+
+1. **状态价值函数（State-Value Function）**——“处于状态 $s$ 并一直遵循 $\pi$，平均能赚多少？”
+   $$
+   v_\pi(s) \doteq \mathbb{E}_\pi\big[G_t \;\big|\; S_t = s\big]
+   $$
+2. **动作价值函数（Action-Value Function）**——“在状态 $s$ 先**强制做一次动作 $a$**，之后再遵循 $\pi$，平均能赚多少？”
+   $$
+   q_\pi(s, a) \doteq \mathbb{E}_\pi\big[G_t \;\big|\; S_t = s, A_t = a\big]
+   $$
+3. **优势函数（Advantage Function）**——“在状态 $s$ 做动作 $a$，比遵循当前策略 $\pi$ 的平均水平**多赚（或少赚）**多少？”
+   $$
+   A_\pi(s, a) \doteq q_\pi(s, a) - v_\pi(s)
+   $$
+
+三者之间有两条极其对称的桥梁公式：
+
+$$
+v_\pi(s) = \sum_{a \in \mathcal{A}} \pi(a \mid s)\, q_\pi(s, a), \qquad q_\pi(s, a) = \sum_{s', r} p(s', r \mid s, a)\Big[r + \gamma v_\pi(s')\Big]
+$$
+
+顺手验证一下优势函数的零均值性质：$\sum_a \pi(a\mid s) A_\pi(s,a) = \sum_a \pi(a\mid s)q_\pi(s,a) - v_\pi(s) = 0$。这将在第 8 章 Actor-Critic 与 PPO 中发挥巨大威力！
+
+---
+
+## 2. 逐行推导：Bellman 期望方程
+
+把 3.2 节的递归恒等式 $G_t = R_{t+1} + \gamma G_{t+1}$ 代入 $v_\pi(s)$，再利用全期望定律展开两层随机性（第 1 层策略选动作 $a$，第 2 层环境采样后继 $(s', r)$）：
+
+$$
+\begin{aligned}
+v_\pi(s) &= \mathbb{E}_\pi\big[R_{t+1} + \gamma G_{t+1} \;\big|\; S_t = s\big] \\
+&= \sum_{a \in \mathcal{A}} \pi(a \mid s) \sum_{s', r} p(s', r \mid s, a)\Big[\, r + \gamma \, \mathbb{E}_\pi\big[G_{t+1} \;\big|\; S_{t+1} = s'\big] \,\Big] \\
+&= \sum_{a \in \mathcal{A}} \pi(a \mid s) \sum_{s', r} p(s', r \mid s, a)\Big[\, r + \gamma \, v_\pi(s') \,\Big]
+\end{aligned}
+$$
+
+**这就是大名鼎鼎的 Bellman 期望方程！** 它建立了当前状态价值 $v_\pi(s)$ 与所有后继状态价值 $v_\pi(s')$ 之间的精确自洽约束。
+
+### 矩阵闭式解（Closed-Form Solution）
+
+记策略 $\pi$ 诱导的 $|\mathcal{S}| \times |\mathcal{S}|$ 转移矩阵为 $P^\pi_{ss'} = \sum_a \pi(a\mid s) p(s'\mid s,a)$，期望即时奖励向量为 $R^\pi_s = \sum_a \pi(a\mid s) r(s,a)$，状态价值列向量为 $\mathbf{v}_\pi \in \mathbb{R}^{|\mathcal{S}|}$。方程瞬间压缩成一行线性代数方程：
+
+$$
+\mathbf{v}_\pi = \mathbf{R}^\pi + \gamma \mathbf{P}^\pi \mathbf{v}_\pi \;\;\Longrightarrow\;\; (\mathbf{I} - \gamma \mathbf{P}^\pi)\mathbf{v}_\pi = \mathbf{R}^\pi \;\;\Longrightarrow\;\; \mathbf{v}_\pi = (\mathbf{I} - \gamma \mathbf{P}^\pi)^{-1} \mathbf{R}^\pi
+$$
+
+因为 $\mathbf{P}^\pi$ 是随机矩阵（谱半径 $\le 1$）且 $\gamma < 1$，矩阵 $(\mathbf{I} - \gamma \mathbf{P}^\pi)$ 必然可逆！不过矩阵求逆的复杂度是 $O(|\mathcal{S}|^3)$——状态超过几千个就求不动了，这正是第 4 章改用迭代动态规划的原因。
+
+---
+
+## 3. Bellman 最优方程（Bellman Optimality Equation）
+
+强化学习的终极目标是寻找**最优策略 $\pi_*$**，使其在**所有状态上同时达到最高可能价值** $v_*(s) \doteq \max_\pi v_\pi(s)$。
+
+最优策略在每个状态必然只选能带来最高动作价值的动作，因此把期望方程外层的 $\sum_a \pi(a\mid s)$ 替换为 **$\max_{a \in \mathcal{A}}$**，立得两条 **Bellman 最优方程**：
+
+$$
+v_*(s) = \max_{a \in \mathcal{A}} \sum_{s', r} p(s', r \mid s, a)\Big[r + \gamma \, v_*(s')\Big]
+$$
+
+$$
+q_*(s, a) = \sum_{s', r} p(s', r \mid s, a)\Big[r + \gamma \max_{a' \in \mathcal{A}} q_*(s', a')\Big]
+$$
+
+### 🎬 Remotion 动作讲解：Bellman 备份树自底向上回传与最优剪枝
+
+<MotionPlayer id="bellman-tree-morph" />
+
+### 🔍 交互实验：点击任意网格实时解剖两层 Bellman 备份树
+
+下方是经典的 $4\times 3$ 随机打滑网格（每次移动有 $80\%$ 概率按意图前进，各有 $10\%$ 概率向左/右垂直滑偏）。**请点击任意不同格子**，悬停 4 个动作分支，亲眼验证表格里的 $v_*(s)$ 确实分毫不差等于右侧的 Bellman 备份值：
+
+<BellmanCellDissector />
+
+<Callout type="important" title="关键洞察：为什么 Q-learning / DQN 都学 q_* 而不是 v_*？">
+  - 即使上帝把精确的 **$v_*(s)$** 交给你，为了决定下一步选哪个动作，你仍必须计算 $\arg\max_a \sum_{s',r} p(s',r\mid s,a)[r + \gamma v_*(s')]$——你**离不开环境转移概率 $p$**！
+  - 而只要手里握着 **$q_*(s, a)$**，最优动作就是一行极简的 $\pi_*(s) = \arg\max_a q_*(s, a)$，**完全不需要任何环境模型！** 这正是无模型控制算法的基石。
 </Callout>
 
-## 核心知识点
+---
 
-- 状态价值 v_π(s)、动作价值 q_π(s,a) 与优势函数 A_π(s,a)
-- Bellman 期望方程的逐行推导与线性矩阵闭式解
-- Bellman 最优方程与最优策略的存在性
-- 为什么无模型算法偏爱 q_* 而不是 v_*
+## 4. Python 实战：一行 NumPy 求出精确矩阵闭式解
 
-## 规划交互
+```python
+import numpy as np
 
-- **`<BellmanCellDissector />`**：交互式 Bellman 单格解剖器：点击 4×4 网格任意一格，右侧展开该格完整两层备份树，悬停节点/边同步高亮公式项与实时数值
+# 3 状态示例 MRP: s0 (起步), s1 (中继), s2 (终点吸收态)
+gamma = 0.9
+P_pi = np.array([
+    [0.2, 0.8, 0.0],   # s0: 0.2 留原地, 0.8 去 s1
+    [0.1, 0.0, 0.9],   # s1: 0.1 退回 s0, 0.9 到终点 s2
+    [0.0, 0.0, 1.0],   # s2: 吸收态
+])
+R_pi = np.array([-1.0, +5.0, 0.0])
 
-## 规划动效
+# 直接解线性方程组 (I - γ P^π) v_π = R^π（数值上比显式求逆更稳定）
+I = np.eye(len(R_pi))
+v_pi = np.linalg.solve(I - gamma * P_pi, R_pi)
+print("精确状态价值 v_π =", np.round(v_pi, 4))
+# 验证 Bellman 自洽性：v_π == R^π + γ P^π v_π
+residual = np.max(np.abs(v_pi - (R_pi + gamma * P_pi @ v_pi)))
+print("Bellman 残差 =", f"{residual:.2e}")
+```
 
-- 🎬 **`bellman-tree-morph`**：数学黑板树状形变风：从叶子状态价值沿概率边发光汇聚至动作节点 q(s,a)，再加权/取 max 汇聚至根状态 v(s)，同步高亮方程对应符号
+---
+
+<QuizBox
+  questions={[
+    {
+      question: 'Bellman 期望方程与 Bellman 最优方程在数学求解难度上的本质区别是？',
+      options: ['期望方程是非线性的，最优方程是线性的', '期望方程是线性方程组（有矩阵闭式解），而最优方程因含 max 算子变为非线性方程组，一般无闭式解需迭代求解', '两个方程都有简单的矩阵闭式解', '最优方程只有在 γ = 1 时才有解'],
+      answerIndex: 1,
+      explanation: 'max_a 是非线性算子，因此 Bellman 最优方程无法直接用 (I - γP)⁻¹R 一次解出，必须借助第 4 章的策略迭代、价值迭代或后续的 Q-learning 迭代求解。',
+    },
+    {
+      question: '假设某状态 s 下策略 π 以 0.5 选动作 a₁、0.5 选动作 a₂，且 q_π(s, a₁) = 10, q_π(s, a₂) = 4。则动作 a₁ 的优势函数 A_π(s, a₁) 等于？',
+      options: ['+10', '+7', '+3', '-3'],
+      answerIndex: 2,
+      explanation: '先算状态平均价值 v_π(s) = 0.5×10 + 0.5×4 = 7；再算优势 A_π(s, a₁) = q_π(s, a₁) - v_π(s) = 10 - 7 = +3。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：第 4 章：动态规划——已知模型的完美规划" href="/docs/04-dynamic-programming" />
+  <Card title="进入第 4 章：动态规划——已知模型的完美规划" href="/docs/04-dynamic-programming" description="亲手在画板上画墙壁、放冰面打滑和多重宝藏，用压缩映射与价值迭代实时求最优解！" />
 </Cards>

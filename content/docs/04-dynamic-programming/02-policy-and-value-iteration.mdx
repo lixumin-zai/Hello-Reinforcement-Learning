@@ -6,28 +6,142 @@ icon: 'Zap'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { PIvsVIRace } from '@/components/docs/04-dynamic-programming/PIvsVIRace';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={3}
+  time="22 分钟"
+  prereqs={['4.1 迭代策略评估与压缩映射']}
+  goals={[
+    '独立写出「策略改进定理」的递推放缩证明',
+    '理解策略迭代 (PI) 与价值迭代 (VI) 的核心区别与本质联系',
+    '认清动态规划的 O(|S|²|A|) 维度灾难瓶颈，自然过渡到无模型采样学习',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. 策略改进定理（Policy Improvement Theorem）完整证明
 
-## 核心知识点
+我们已经会算任意策略 $\pi$ 的真实价值 $v_\pi$ 了。现在的问题是：**怎样构造出一个严格比 $\pi$ 更强的新策略 $\pi'$？**
 
-- 策略改进定理完整证明与贪心改进
-- 策略迭代 (PI) 为什么常常只需 3~5 轮即收敛
-- 价值迭代 (VI)：把评估截断为 1 步扫描
-- 异步动态规划与维度灾难 O(|S|²|A|)
+设 $\pi$ 和 $\pi'$ 是任意两个确定性策略。如果对所有状态 $s \in \mathcal{S}$ 都满足：
 
-## 规划交互
+$$
+q_\pi\big(s, \pi'(s)\big) \ge v_\pi(s)
+$$
 
-- **`<PIvsVIRace />`**：PI vs VI 同屏竞速台：在同一自定义网格上并排运行策略迭代与价值迭代，实时统计 Bellman 备份总次数、轮次与误差曲线
+（即：“在任意状态 $s$ 先走一步新策略 $\pi'(s)$，之后照旧走老策略 $\pi$”都不亏），那么**一直走新策略 $\pi'$ 必然处处不劣于老策略 $\pi$**：$v_{\pi'}(s) \ge v_\pi(s)$！
 
-## 规划动效
+### 三行递推证明（极其优雅！）
 
-- 🎬 **`value-wavefield`**：地形等高线与热力水波风：荧光价值波浪从目标点向外衍射绕过墙壁，策略风场箭头沿等高线梯度顺势对齐最优路径
+反复把不等式往未来展开：
+
+$$
+\begin{aligned}
+v_\pi(s) &\le q_\pi\big(s, \pi'(s)\big) = \mathbb{E}\Big[R_{t+1} + \gamma v_\pi(S_{t+1}) \;\Big|\; S_t = s, A_t = \pi'(s)\Big] \\
+&\le \mathbb{E}_{\pi'}\Big[R_{t+1} + \gamma q_\pi\big(S_{t+1}, \pi'(S_{t+1})\big) \;\Big|\; S_t = s\Big] \\
+&= \mathbb{E}_{\pi'}\Big[R_{t+1} + \gamma R_{t+2} + \gamma^2 v_\pi(S_{t+2}) \;\Big|\; S_t = s\Big] \\
+&\le \cdots \le \mathbb{E}_{\pi'}\Big[R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots \;\Big|\; S_t = s\Big] = v_{\pi'}(s) \quad \blacksquare
+\end{aligned}
+$$
+
+由此立得**贪心策略改进（Greedy Policy Improvement）**规则：
+
+$$
+\pi'(s) \doteq \arg\max_{a \in \mathcal{A}} q_\pi(s, a) = \arg\max_{a \in \mathcal{A}} \sum_{s', r} p(s', r \mid s, a)\big[r + \gamma v_\pi(s')\big]
+$$
+
+---
+
+## 2. 策略迭代 (PI) vs 价值迭代 (VI)
+
+把「策略评估 $E$」与「贪心策略改进 $I$」交替循环，就得到两大经典 DP 求解器：
+
+1. **策略迭代（Policy Iteration, PI）**：
+   $$
+   \pi_0 \xrightarrow{\;E \text{ (跑到收敛)}\;} v_{\pi_0} \xrightarrow{\;I\;} \pi_1 \xrightarrow{\;E\;} v_{\pi_1} \xrightarrow{\;I\;} \cdots \xrightarrow{\;I\;} \pi_*
+   $$
+   因为有限 MDP 确定性策略总数 $|\mathcal{A}|^{|\mathcal{S}|}$ 有限，且每轮严格变好，PI 常常在 **3–6 轮外层改进**内就精确锁定全局最优 $\pi_*$！但缺点是每次内部评估 $E$ 都要扫描很多遍。
+2. **价值迭代（Value Iteration, VI）**：
+   既然不必要等 $v_\pi$ 算到小数点后 6 位才去改策略，干脆把评估截断成 **1 次扫描**，把 $\max_a$ 直接融进备份式——这恰好就是把 **Bellman 最优方程**变成了更新公式：
+   $$
+   V_{k+1}(s) \;\leftarrow\; \max_{a \in \mathcal{A}} \sum_{s', r} p(s', r \mid s, a)\Big[\, r + \gamma V_k(s') \,\Big]
+   $$
+   同样可证 Bellman 最优算子 $\mathcal{T}^*$ 也是 $\gamma$-压缩映射，唯一收敛于 $v_*$！
+
+### 🎬 Remotion 动作讲解：价值迭代荧光水波扩散与风场对齐
+
+<MotionPlayer id="value-wavefield" />
+
+### ⚔️ 交互实验：策略迭代 vs 价值迭代同屏对照台
+
+切换到「**6×9 Dyna 迷宫**」，亲自比较 PI 只需要几轮外层改进、而 VI 需要多少轮单步扫描才能把价值波传过重重墙壁：
+
+<PIvsVIRace />
+
+---
+
+## 3. 动态规划的阿喀琉斯之踵：维度灾难（Curse of Dimensionality）
+
+DP 如此精确优雅，为什么围棋、自动驾驶、大模型里却很少直接跑价值迭代？
+1. **必须已知完整转移模型 $p(s', r \mid s, a)$**：现实物理世界和人类语言交互几乎写不出精确转移概率表；
+2. **维度灾难**：单次同步扫描复杂度为 $O(|\mathcal{S}|^2 |\mathcal{A}|)$。如果一个机器人有 10 个关节，每个关节离散化成 100 档，总状态数高达 $100^{10} = 10^{20}$ —— 哪怕把全地球的显卡拼起来，连第一轮扫描都跑不完！
+
+---
+
+## 4. Python 完整价值迭代实现
+
+```python
+import numpy as np
+
+def value_iteration(P, gamma=0.9, theta=1e-5):
+    """标准价值迭代：返回最优价值 V* 与确定性最优策略 pi*"""
+    n_states = len(P)
+    n_actions = len(P[0])
+    V = np.zeros(n_states, dtype=float)
+
+    while True:
+        delta = 0.0
+        for s in range(n_states):
+            q_sa = [
+                sum(p * (r + (0.0 if done else gamma * V[ns])) for p, ns, r, done in P[s][a])
+                for a in range(n_actions)
+            ]
+            best_v = max(q_sa)
+            delta = max(delta, abs(best_v - V[s]))
+            V[s] = best_v
+        if delta < theta:
+            break
+
+    # 从收敛后的 V* 贪心提取最优策略 π*
+    policy = np.zeros(n_states, dtype=int)
+    for s in range(n_states):
+        q_sa = [
+            sum(p * (r + (0.0 if done else gamma * V[ns])) for p, ns, r, done in P[s][a])
+            for a in range(n_actions)
+        ]
+        policy[s] = int(np.argmax(q_sa))
+    return V, policy
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在策略迭代 (PI) 中，如果某一轮贪心改进得到的新策略 π_{k+1} 与上一轮策略 π_k 在所有状态上完全相同，这意味着什么？',
+      options: ['算法陷入了局部次优解，需要重新随机初始化', 'Bellman 最优方程已在所有状态上严格成立，π_k 必定是全局最优策略 π*', '说明折扣因子 γ 设得太小', '说明必须切换为价值迭代继续跑'],
+      answerIndex: 1,
+      explanation: '当 π_{k+1} = π_k 时，对所有 s 都有 v_{π_k}(s) = q_{π_k}(s, π_{k+1}(s)) = max_a Σ p[r + γ v_{π_k}(s′)]，恰好严格满足 Bellman 最优方程，因此必然到达全局最优！',
+    },
+    {
+      question: '价值迭代 (VI) 与策略迭代 (PI) 的本质关系是？',
+      options: ['价值迭代根本没有做策略改进', '价值迭代等价于把策略迭代中内部的“评估到收敛”截断为只扫描 1 轮就立刻做贪心改进', '价值迭代不需要知道环境转移概率 p', '策略迭代只能用于确定性环境'],
+      answerIndex: 1,
+      explanation: '这正是下一节「广义策略迭代 (GPI)」的核心洞见：PI 与 VI 只是评估粒度不同而已。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：4.3 广义策略迭代 (GPI)：统摄全书的顶层视角" href="/docs/04-dynamic-programming/03-gpi" />
+  <Card title="下一节：4.3 广义策略迭代 (GPI)：统摄全书的顶层视角" href="/docs/04-dynamic-programming/03-gpi" description="在真实 SVG 双流形几何图上，看清 PI、VI、TD、Actor-Critic 如何殊途同归！" />
 </Cards>

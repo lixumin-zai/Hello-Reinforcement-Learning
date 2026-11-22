@@ -6,28 +6,116 @@ icon: 'Percent'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { DiscountHorizonLab } from '@/components/docs/03-mdp-bellman/DiscountHorizonLab';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={3}
+  time="16 分钟"
+  prereqs={['3.1 MDP 五元组', '等比级数求和']}
+  goals={[
+    '理解分幕式与持续式任务如何通过折扣因子 γ 统一为同一个回报定义',
+    '掌握回报的核心递归恒等式 G_t = R_{t+1} + γ G_{t+1}',
+    '亲手算出临界折扣阈值 γ*，理解 γ 如何直接决定最优策略的选择',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 为什么不能把未来所有奖励直接加起来？
+
+在一盘围棋或一局《迷雾寻宝》这种**分幕式任务（Episodic Tasks）**中，回合总会在有限步 $T$ 结束，我们可以直接把沿途奖励相加：$G_t = R_{t+1} + R_{t+2} + \cdots + R_T$。
+
+但如果你的智能体负责**数据中心温控、自动驾驶或高频做市**，任务永远没有终点（**持续式任务 Continuing Tasks**，$T = \infty$）。如果每步拿 `+1` 分，直接相加 $1 + 1 + 1 + \cdots = \infty$ —— 两条好坏天差地别的策略回报全是无穷大，根本无法比较！
+
+为此，我们引入**折扣因子（Discount Factor）** $\gamma \in [0, 1]$，统一定义从时刻 $t$ 出发的**折扣回报（Discounted Return）**：
+
+$$
+G_t \doteq R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}
+$$
+
+> **统一技巧**：只要给分幕式任务的终止状态加上一条“奖励为 $0$、概率为 $1$ 指向自己的吸收自环”，分幕式和持续式任务就共享完全同一套无穷级数公式！
+
+---
+
+## 2. 亲手验证：$\gamma$ 如何戏剧性改变最优策略
+
+很多人误以为 $\gamma$ 只是一个“为了防止无穷级数发散而硬塞进去的数学补丁”。大错特错！**$\gamma$ 直接定义了智能体的“耐心”和“价值观”**。
+
+来看一个经典的抉择走廊：
+- 智能体站在起点，**向左走 1 步**立刻吃到一颗 `+2` 分糖果并结束；
+- **向右走 5 步**才能拿到远方 `+10` 分的皇冠并结束（沿途 0 奖励）。
+
+我们精确计算两条路线的折扣现值：
+
+$$
+G_{\text{left}} = \gamma^1 \cdot 2, \qquad G_{\text{right}} = \gamma^5 \cdot 10
+$$
+
+何时智能体会放弃眼前糖果、忍耐 5 步去拿远方皇冠？令 $G_{\text{right}} > G_{\text{left}}$：
+
+$$
+10 \gamma^5 > 2 \gamma \;\;\Longleftrightarrow\;\; \gamma^4 > \frac{1}{5} = 0.2 \;\;\Longleftrightarrow\;\; \gamma > (0.2)^{1/4} \approx 0.6687
+$$
+
+### 🔭 交互实验：拖动 $\gamma$ 跨过临界阈值 $\gamma^* \approx 0.669$！
+
+亲自把滑块从 `0.55` 慢慢拖过 `0.67`，观察走廊里机器人的最优箭头如何在一瞬间掉头：
+
+<DiscountHorizonLab />
+
+---
+
+## 3. 几何级数折叠：所有 Bellman 方程的起点
+
+回报定义里藏着一条全书最重要、也最简洁的**递归恒等式**。从第二项开始提取公因式 $\gamma$：
+
+$$
+\begin{aligned}
+G_t &= R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \gamma^3 R_{t+4} + \cdots \\
+    &= R_{t+1} + \gamma \Big( R_{t+2} + \gamma R_{t+3} + \gamma^2 R_{t+4} + \cdots \Big) \\
+    &= R_{t+1} + \gamma \, G_{t+1}
+\end{aligned}
+$$
+
+### 🎬 Remotion 动作讲解：几何级数手风琴折叠推导
+
+<MotionPlayer id="discount-series-fold" />
+
+---
+
+## 4. 折扣因子 $\gamma$ 的三重深层含义
+
+1. **数学收敛保证**：只要每步奖励有界 $|R_t| \le R_{\max}$ 且 $0 \le \gamma < 1$，由等比级数公式立得回报绝对有界：
+   $$
+   |G_t| \le R_{\max} \sum_{k=0}^{\infty} \gamma^k = \frac{R_{\max}}{1 - \gamma}
+   $$
+2. **有效规划视野（Effective Horizon）**：$\frac{1}{1-\gamma}$ 给出了智能体的“有效前瞻步数”。工程调参中，这是一个极具实用价值的经验尺子：
+   - $\gamma = 0.90 \;\Rightarrow\; \text{有效视野} \approx 10\text{ 步}$（适合短回合网格/棋类残局）；
+   - $\gamma = 0.99 \;\Rightarrow\; \text{有效视野} \approx 100\text{ 步}$（Atari、MuJoCo 机器人最常用默认值）；
+   - $\gamma = 0.999 \;\Rightarrow\; \text{有效视野} \approx 1000\text{ 步}$（超长程星际争霸、围棋，但方差和训练难度也飙升）。
+3. **生存概率解释**：你可以把 $\gamma$ 等价理解为“每走一步之后，世界以概率 $1-\gamma$ 突然停电终止，以概率 $\gamma$ 存活到下一步”的期望总奖励！
+
+<Callout type="warn" title="工程调参坑：不要盲目把 γ 设成 0.9999">
+  $\gamma$ 越接近 $1$，未来远处噪声累加进来的**估计方差越大**，且 Bellman 压缩率 $\gamma^k$ 衰减极慢（价值迭代和 TD 收敛步数都会成倍拉长）。在大模型 RLHF / GRPO 中，由于单条回答总长有限且奖励只在句尾出现，通常取 $\gamma = 1.0$（不折扣）以保证推理链前端的思考步骤和末尾答案享有同等信用。
 </Callout>
 
-## 核心知识点
+---
 
-- 分幕式与持续式任务的统一回报定义
-- 递归恒等式 G_t = R_\{t+1\} + γ G_\{t+1\}
-- 折扣因子 γ 的三重解释与有效视野 1/(1-γ)
-- γ 临界阈值如何反转智能体的最优行为
-
-## 规划交互
-
-- **`<DiscountHorizonLab />`**：折扣望远镜实验室：包含「近处 +1 糖果 vs 远处 +10 宝藏」真实迷你世界，拖动 γ 实时看到有效视野变化并在临界点反转最优路线
-
-## 规划动效
-
-- 🎬 **`discount-series-fold`**：数学黑板风：几何级数项按 γ^k 缩放并像手风琴一样折叠进括号，推演出 G_t = R_\{t+1\} + γ G_\{t+1\}
+<QuizBox
+  questions={[
+    {
+      question: '假设一个持续式环境每一步都固定给出 R_t = +2 的奖励，折扣因子 γ = 0.8。那么从任意时刻出发的折扣回报 G_t 精确等于多少？',
+      options: ['2.0', '8.0', '10.0', '无穷大'],
+      answerIndex: 2,
+      explanation: '套用等比级数公式 G_t = 2 × (1 + 0.8 + 0.8² + …) = 2 / (1 - 0.8) = 2 / 0.2 = 10.0。',
+    },
+    {
+      question: '在一个机器人控制任务中，控制频率为 50 Hz（每秒 50 步），你希望智能体主要规划未来约 2 秒（100 步）的动作后果，γ 选哪个最合理？',
+      options: ['γ = 0.50', 'γ = 0.90', 'γ = 0.99', 'γ = 0.01'],
+      answerIndex: 2,
+      explanation: '按有效视野 1 / (1 - γ) ≈ 100 反推，1 - γ ≈ 0.01，即 γ ≈ 0.99。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：3.3 价值函数与 Bellman 方程深度推导" href="/docs/03-mdp-bellman/03-value-and-bellman" />
+  <Card title="下一节：3.3 价值函数与 Bellman 方程深度推导" href="/docs/03-mdp-bellman/03-value-and-bellman" description="点击网格任意格子实时解剖两层 Bellman 备份树，掌握期望方程矩阵闭式解与最优方程！" />
 </Cards>

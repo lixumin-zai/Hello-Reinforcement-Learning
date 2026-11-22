@@ -6,28 +6,149 @@ icon: 'Network'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { InteractiveStudentMDP } from '@/components/docs/03-mdp-bellman/InteractiveStudentMDP';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={2}
+  time="18 分钟"
+  prereqs={['第 1 章交互闭环', '第 2 章多臂老虎机', '条件概率']}
+  goals={[
+    '严格掌握马尔可夫性质，并学会在工程中把非马尔可夫观测改造成马尔可夫状态',
+    '理解从马尔可夫链 (MP) → 马尔可夫奖励过程 (MRP) → MDP 五元组的演进',
+    '学会从四元动力学 p(s′,r|s,a) 边缘化导出状态转移矩阵与期望奖励函数',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★☆☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
-</Callout>
+## 1. 告别单状态世界：当你的动作会改变未来
 
-## 核心知识点
+在第 2 章的老虎机赌场里，不管你刚才拉了 1 号机还是 3 号机，下一轮摆在你面前的还是那 5 台一模一样的机台——**你的动作不会改变你所处的状态**。
 
-- 马尔可夫性质的数学定义与直观例子（围棋 vs 堆叠 4 帧 Atari）
-- MP → MRP → MDP 五元组演进
-- 四元动力学 p(s′,r|s,a) 与边缘化公式
-- 部分可观测环境 (POMDP) 与信念状态
+但真实世界的决策远比老虎机棘手得多：
+- 在学生生涯里，今天选择“专注听课”虽然眼下很累（即时奖励 `-2`），但它会把你送进“掌握知识”的状态，让你在期末拿到 `+10`；
+- 今天选择“刷手机摸鱼”眼下损失更小（`-1`），却会让你原地踏步甚至陷入死循环！
 
-## 规划交互
+为了统一描述这种“动作既影响即时奖励、又驱动状态演化”的序贯世界，我们引入强化学习的数学母语——**马尔可夫决策过程（Markov Decision Process, MDP）**。
 
-- **`<InteractiveStudentMDP />`**：可编程拓扑图学生 MDP：可视化转移概率扇形，支持手动调整概率滑块并一键采样多条轨迹统计平稳分布
+---
 
-## 规划动效
+## 2. 马尔可夫性质：现在已经浓缩了全部历史
 
-- 🎬 **`markov-chalkboard`**：3Blue1Brown 数学黑板风：发光拓扑节点、粒子沿概率边游走与状态访问频率分布平滑收敛
+设到时刻 $t$ 为止的完整历史为 $H_t = (S_0, A_0, R_1, \dots, S_{t-1}, A_{t-1}, R_t, S_t)$。若状态 $S_t$ 满足：
+
+$$
+\mathbb{P}\big(S_{t+1} = s', R_{t+1} = r \;\big|\; S_t, A_t\big) \;=\; \mathbb{P}\big(S_{t+1} = s', R_{t+1} = r \;\big|\; H_t, A_t\big)
+$$
+
+我们就称该状态具有**马尔可夫性质（Markov Property）**——通俗地说：**“给定现在，未来与过去条件独立。”**
+
+### ⚠️ 现实中的状态天然满足马尔可夫性吗？
+
+往往**不满足**，但我们可以通过**状态工程**把它“改造”成马尔可夫状态：
+
+| 场景 | 原始单帧观测 $O_t$ 为何不满足马尔可夫性？ | 工程构造马尔可夫状态 $S_t$ 的方法 |
+| --- | --- | --- |
+| **Atari 打砖块** | 单张像素截图看不出小球正在往左飞还是往右飞、速度有多快 | **帧堆叠（Frame Stacking）**：把最近连续 4 帧拼接成 $S_t = [O_{t-3}, O_{t-2}, O_{t-1}, O_t]$ |
+| **扑克牌 / 德州扑克** | 看不见对手手里的底牌，历史下注节奏藏着信息 | **部分可观测 MDP (POMDP)**：用循环网络 (GRU/Transformer) 编码历史动作序列 |
+| **大语言模型对话** | 单看最后一个词完全不知道上下文在聊什么 | 把从头到尾的**完整 Token 前缀** $[x_1, \dots, x_t]$ 整体作为当前状态 $S_t$ |
+
+---
+
+## 3. 从 MP → MRP → MDP 五元组
+
+MDP 由五元组 $(\mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma)$ 完整定义，而其核心动力学可以用一个统一的四元联合概率分布来刻画：
+
+$$
+p(s', r \mid s, a) \doteq \mathbb{P}\big(S_{t+1} = s', R_{t+1} = r \;\big|\; S_t = s, A_t = a\big)
+$$
+
+只要掌握了 $p(s', r \mid s, a)$，任何我们关心的子量都能通过**边缘化求和**精准导出：
+
+1. **状态转移概率**：
+   $$
+   p(s' \mid s, a) = \sum_{r \in \mathcal{R}} p(s', r \mid s, a)
+   $$
+2. **状态-动作期望奖励**：
+   $$
+   r(s, a) \doteq \mathbb{E}\big[R_{t+1} \mid S_t = s, A_t = a\big] = \sum_{r \in \mathcal{R}} r \sum_{s' \in \mathcal{S}} p(s', r \mid s, a)
+   $$
+
+### 🎬 Remotion 动作讲解：黑板上的概率拓扑游走与平稳分布
+
+<MotionPlayer id="markov-chalkboard" />
+
+### 🕸️ 交互实验：亲手调控「学生 MDP」的转移动力学
+
+试试先在 `p = 0.80` 下手动走一局并点击「采样 120 回合」观察平均回报；再把 `p` 调低到 `0.35`（听课极易走神），看看勤奋策略的期望回报与各状态访问分布发生怎样翻天覆地的变化：
+
+<InteractiveStudentMDP />
+
+---
+
+## 4. Python 最小 MDP 转移与采样实现
+
+```python
+import numpy as np
+
+# 用字典精确表示有限 MDP 的四元动力学 p(s', r | s, a)
+# 格式: P[state][action] = [(prob, next_state, reward, done), ...]
+STUDENT_MDP = {
+    "C1": {
+        "study": [(0.8, "C2", -2.0, False), (0.2, "C1", -2.0, False)],
+        "relax": [(0.9, "Relax", -1.0, False), (0.1, "C1", -1.0, False)],
+    },
+    "Relax": {
+        "relax": [(0.85, "Relax", -1.0, False), (0.15, "C1", -1.0, False)],
+        "back":  [(1.0, "C1", 0.0, False)],
+    },
+    "C2": {
+        "study": [(0.8, "Pass", -2.0, False), (0.2, "C1", -2.0, False)],
+        "sleep": [(1.0, "Sleep", 0.0, True)],
+    },
+    "Pass": {
+        "celebrate": [(1.0, "Sleep", +10.0, True)],
+    },
+}
+
+def sample_episode(mdp, policy, gamma=0.9, seed=42):
+    rng = np.random.default_rng(seed)
+    state, G, discount = "C1", 0.0, 1.0
+    path = [state]
+    while state != "Sleep":
+        action = policy(state)
+        transitions = mdp[state][action]
+        probs = [tr[0] for tr in transitions]
+        _, next_state, reward, done = transitions[rng.choice(len(transitions), p=probs)]
+        G += discount * reward
+        discount *= gamma
+        state = next_state
+        path.append(state)
+        if done:
+            break
+    return path, G
+
+path, G = sample_episode(STUDENT_MDP, lambda s: list(STUDENT_MDP[s].keys())[0])
+print("采样轨迹:", " → ".join(path), "| 折扣回报 G₀ =", round(G, 2))
+```
+
+---
+
+<QuizBox
+  questions={[
+    {
+      question: '在 DeepMind 的经典 Atari DQN 论文中，为什么神经网络的输入是连续 4 帧灰度图像而不是单帧图像？',
+      options: ['为了增加卷积层的参数量', '单张静态画面无法反映物体的运动方向和速度，堆叠 4 帧用于近似恢复马尔可夫性质', 'Atari 2600 硬件本身一次输出 4 帧', '为了降低显存占用'],
+      answerIndex: 1,
+      explanation: '单帧图像缺失了速度（一阶导数）信息，属于部分可观测 (POMDP)；拼接连续多帧让当前状态包含速度和加速度信息，从而满足马尔可夫性。',
+    },
+    {
+      question: '关于四元动力学 p(s′, r | s, a)，以下哪个求和结果必定严格等于 1？',
+      options: ['对所有动作 a 求和', '固定 (s, a)，对所有可能的后继状态 s′ 与奖励 r 求和', '固定 (s′, r)，对所有前置状态 s 求和', '对所有时间步 t 求和'],
+      answerIndex: 1,
+      explanation: 'p(s′, r | s, a) 是在给定当前状态 s 和动作 a 的条件下，下一刻结果 (s′, r) 的联合条件概率分布，因此固定 (s, a) 对 (s′, r) 求和恒为 1。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：3.2 回报 G_t 与折扣因子 γ 的“远见”效应" href="/docs/03-mdp-bellman/02-return-and-discount" />
+  <Card title="下一节：3.2 回报 G_t 与折扣因子 γ 的“远见”效应" href="/docs/03-mdp-bellman/02-return-and-discount" description="在近处糖果与远处宝藏的抉择中，亲眼看 γ 跨过临界阈值如何戏剧性反转最优路线！" />
 </Cards>

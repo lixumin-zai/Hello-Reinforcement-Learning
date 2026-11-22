@@ -6,27 +6,69 @@ icon: 'Infinity'
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
+import { GPIManifoldExplorer } from '@/components/docs/04-dynamic-programming/GPIManifoldExplorer';
 
-{/* @status: skeleton —— 待按六段式深度标准填充 */}
+<LessonHeader
+  difficulty={3}
+  time="12 分钟"
+  prereqs={['4.2 策略迭代与价值迭代']}
+  goals={[
+    '理解广义策略迭代 (GPI) 中“评估”与“改进”既相互破坏又彼此成就的几何直觉',
+    '用 GPI 统一框架将后面 6 章的全部算法（MC / SARSA / Q-learning / DQN / Actor-Critic / PPO）纳入同一张地图',
+  ]}
+/>
 
-<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
-  本节正在按重构计划逐章深度编写。
+## 1. 一对看似互相拆台、实则奔赴共同终点的舞伴
+
+回顾策略迭代与价值迭代，你会发现两者都在反复执行两件事：
+- **策略评估（Policy Evaluation）**：让当前的价值函数 $V$ 尽量贴合当前策略 $\pi$ 的真实表现（把状态点拉向青色流形 **$V = v_\pi$**）；
+- **策略改进（Policy Improvement）**：让当前的策略 $\pi$ 尽量对当前价值函数 $V$ 变贪心（把状态点拉向紫色流形 **$\pi = \text{greedy}(V)$**）。
+
+乍一看，这两个过程是在**互相拆台**：
+- 你刚把 $V$ 评估得和 $\pi$ 严丝合缝，改进步立刻把 $\pi$ 改掉了，旧价值瞬间过时；
+- 你刚把 $\pi$ 改得对 $V$ 完全贪心，评估步立刻把 $V$ 刷了一遍，新策略又不再贪心！
+
+然而从全局几何来看，两条约束流形相交于唯一的一点 **$(v_*, \pi_*)$**——只要评估和改进两股力量持续拉扯，它们就像两个相向倾斜的挡板，把状态点一步步弹跳收束进唯一的全局最优交点！Sutton & Barto 将这一普适思想命名为**广义策略迭代（Generalized Policy Iteration, GPI）**。
+
+### 🎬 Remotion 动作讲解：双流形锯齿收敛相机跟拍
+
+<MotionPlayer id="gpi-camera-zigzag" />
+
+### 📐 交互实验：切换 PI / VI / 在线 TD，对比三种 GPI 收敛步态
+
+<GPIManifoldExplorer />
+
+---
+
+## 2. 用一张 GPI 全景表剧透整本教程后半程
+
+学到这里，你已经拿到了读懂后续所有算法的总钥匙。无论后面遇到多复杂的深度神经网络，永远问它两个问题：**“谁在做评估？谁在做改进？”**
+
+| 算法名称 | 所在章节 | 谁负责「策略评估」？ | 谁负责「策略改进」？ | 评估粒度 |
+| --- | --- | --- | --- | --- |
+| **策略迭代 (PI)** | 第 4 章 | 全状态期望扫描直至收敛 | 确定性贪心 $\arg\max_a q(s,a)$ | 彻底评估 |
+| **价值迭代 (VI)** | 第 4 章 | 单轮全状态期望扫描 | 内嵌 $\max_a$ 一步贪心 | 1 轮全图 |
+| **蒙特卡洛控制** | 第 5 章 | 完整回合采样回报 $G_t$ 更新 $Q$ | $\varepsilon$-soft 贪心 | 每回合一次 |
+| **SARSA / Q-learning** | 第 6 章 | 单步 TD 自举误差 $\delta_t$ 更新 $Q$ | $\varepsilon$-greedy / $\max$ | 每走 1 步 |
+| **DQN / Rainbow** | 第 7 章 | 深度神经网 + 经验回放 + 目标网拟合 $Q_\theta$ | $\varepsilon$-greedy / NoisyNet | 每个 Mini-batch |
+| **Actor-Critic / PPO / SAC** | 第 8–9 章 | Critic 网络拟合 $V_\phi$ 或 $Q_\phi$（配 GAE） | Actor 策略网沿策略梯度 / PPO-Clip 上升 | 每个 Rollout / Batch |
+| **GRPO (DeepSeek-R1)** | 第 10 章 | **创新：用同组 $G$ 条回答均值直接代替 Critic！** | PPO-Clip + KL 正则更新 LLM 策略 $\pi_\theta$ | 每组 Prompt |
+
+<Callout type="tip" title="告别上帝视角，进入无模型时代！">
+  动态规划要求把整个世界的转移概率表 $p(s',r\mid s,a)$ 摊在桌上。从下一章**第 5 章蒙特卡洛方法**开始，我们正式撕掉这张上帝地图——去 21 点赌桌上只凭真实发牌输赢经验，从零学出最优策略！
 </Callout>
 
-## 核心知识点
-
-- 评估流形 V = v_π 与改进流形 π = greedy(V) 的几何交互
-- 不同粒度下的 GPI：PI / VI / 异步 DP / MC / TD / Actor-Critic
-- 竞争与合作如何共同收敛到最优不动点 (v*, π*)
-
-## 规划交互
-
-- **`<GPIManifoldExplorer />`**：真实 SVG 交互式 GPI 双流形收敛图：切换 PI / VI / 在线 TD 三种模式，动态演示截然不同的锯齿收敛步态
-
-## 规划动效
-
-- 🎬 **`gpi-camera-zigzag`**：等高线双流形跟拍风：镜头平滑追踪状态点在两条约束线间锯齿弹跳并最终锁定星标交点 (v*, π*)
+<QuizBox
+  questions={[
+    {
+      question: '在 GPI 框架下，如果一个算法只做策略评估、永远不做策略改进，最终状态点会停在哪里？',
+      options: ['停在最优不动点 (v*, π*)', '停在上方青色流形 V = v_{π₀} 上（准确算出了初始烂策略的真实价值，但策略毫无长进）', '无限发散', '停在紫色流形 π = greedy(V) 上'],
+      answerIndex: 1,
+      explanation: '只评估不改进就是 4.1 节的策略评估：只能算出初始策略 π₀ 的真实价值 v_{π₀}，永远不会走向最优策略 π*。',
+    },
+  ]}
+/>
 
 <Cards>
-  <Card title="下一节：第 5 章：蒙特卡洛方法——从真实轨迹中学习" href="/docs/05-monte-carlo" />
+  <Card title="进入第 5 章：蒙特卡洛方法——21 点赌场实战与策略涌现 🃏" href="/docs/05-monte-carlo" description="亲手和庄家打几局 21 点，再一键训练 50,000 局亲眼看经典 10×10 最优策略边界浮现！" />
 </Cards>
