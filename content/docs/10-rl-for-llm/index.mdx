@@ -1,0 +1,33 @@
+---
+title: '10.1 把语言模型写成 Token 级 MDP'
+description: '预训练后的 LLM 为什么天然是一个随机策略？建立自回归生成与 MDP 的精确数学对应。'
+icon: 'MessageSquare'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 状态 = 历史上下文前缀、动作 = 下一个词表 Token、转移 = 确定性拼接
+- 序列级稀疏奖励与超长动作空间 |V| ≈ 10⁵ 的挑战
+- 参考策略 π_ref 与 KL 惩罚项防止语言退化
+- 大模型后训练全景图：SFT → 偏好对齐 → 可验证强化推理
+
+## 规划交互
+
+- **`<TokenMDPSimulator />`**：Token 级 MDP 生成透视器：逐 token 推进数学解题生成，展示每一步 Top-5 词表动作概率条、采样选择、单步 KL 散度与终局稀疏奖励
+
+## 规划动效
+
+- 🎬 **`llm-token-stream`**：现代 AI 终端与 Token 流矩阵风：Prompt 逐格喷射生成 Token 序列，顶部同步跳动词表动作概率直方图与 KL 散度仪表
+
+<Cards>
+  <Card title="下一节：10.2 RLHF 三阶段架构与奖励黑客" href="/docs/10-rl-for-llm/02-rlhf-and-reward-hacking" />
+</Cards>

@@ -1,0 +1,29 @@
+---
+title: '9.2 基于模型的 RL：Dyna-Q 与 Dreamer 世界模型'
+description: '在脑海里推演未来：用模型规划成倍提升样本效率，从表格 Dyna-Q 走到隐空间想象训练的 Dreamer。'
+icon: 'Box'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- Model-Free vs Model-Based 的样本效率与模型误差权衡
+- Dyna-Q 统一架构：直接 RL、模型学习与脑内规划
+- 环境突变（捷径打开）时模型误差陷阱与 Dyna-Q+
+- World Models 与 Dreamer 隐空间想象训练
+
+## 规划交互
+
+- **`<DynaQPlannerLab />`**：Dyna-Q 迷宫规划步数对比实验：在同一迷宫中自由调节脑内规划步数 n=0/5/30，实时对比回合步数骤降与环境墙壁突变时的适应差异
+
+<Cards>
+  <Card title="下一节：9.3 蒙特卡洛树搜索 (MCTS) 与 AlphaZero / MuZero" href="/docs/09-control-and-planning/03-mcts-alphazero" />
+</Cards>

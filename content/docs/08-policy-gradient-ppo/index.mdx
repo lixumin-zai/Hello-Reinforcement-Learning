@@ -1,0 +1,34 @@
+---
+title: '8.1 策略梯度定理与 REINFORCE'
+description: '为什么不需要环境模型也能直接对期望回报求梯度？亲手玩 CartPole 并看懂基线如何大幅降低方差。'
+icon: 'Mountain'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 参数化随机策略 π_θ 与性能目标 J(θ)
+- 对数导数技巧 (Log-Derivative Trick) 与策略梯度定理逐行推导
+- REINFORCE 蒙特卡洛策略梯度与高方差痛点
+- 状态相关基线 b(s) 不引入偏差的严格证明
+
+## 规划交互
+
+- **`<CartPoleGame />`**：真实物理小游戏《倒立摆 CartPole 平衡挑战》：键盘 ←/→ 亲自顶杆子计时挑战，一键切换策略梯度控制器接管并实时观察 π_θ(左/右|s) 概率条
+- **`<PolicyLandscapeLab />`**：2D 策略梯度地形攀登器：对比有/无基线 b(s) 时梯度估计箭头的散点抖动幅度与攀登轨迹
+
+## 规划动效
+
+- 🎬 **`policy-gradient-morph`**：等高线矢量场风：动作概率分布像液态波包随回报正负隆起/压低，右侧 2D 参数山丘上策略点沿期望梯度箭头稳步登顶
+
+<Cards>
+  <Card title="下一节：8.2 Actor-Critic 与广义优势估计 (GAE)" href="/docs/08-policy-gradient-ppo/02-actor-critic-gae" />
+</Cards>

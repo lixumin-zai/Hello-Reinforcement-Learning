@@ -1,53 +1,33 @@
 ---
-title: 'TD(0) 预测'
-description: 'TD 误差 δ 与自举。'
+title: '6.1 TD(0) 预测、自举与偏差-方差权衡'
+description: '不等回合结束、迈出一步就学习！对比 MC、TD 与 DP，理解为何 TD 误差与大脑多巴胺高度同构。'
 icon: 'Timer'
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
-import { RandomWalkTDvsMC } from '@/components/docs/06-temporal-difference/RandomWalkTDvsMC';
-import { MotionPlayer } from '@/components/motion/MotionPlayer';
 
-如果需要在强化学习中选择一个最核心、最具原创性的思想，毫无疑问就是**时序差分学习（Temporal-Difference Learning, TD）**。它结合了蒙特卡洛（MC）的**从原始经验采样**与动态规划（DP）的**自举（Bootstrapping）**。
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
 
----
+<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
 
-## 1. 从蒙特卡洛到单步时序差分 TD(0)
+## 核心知识点
 
-在常数步长蒙特卡洛预测中，我们必须等到整个回合在时刻 $T$ 结束、拿到真实完整回报 $G_t$ 后，才能更新状态 $S_t$：
+- TD 目标 R_\{t+1\} + γ V(S_\{t+1\}) 与 TD 误差 δ_t
+- MC、TD、DP 备份维度全景对比（采样 vs 全期望、自举 vs 完整回报）
+- 批量更新下的确定性等价性 (Certainty-Equivalence)
+- 5 状态随机游走实验与 RMS 误差分析
 
-$$
-V(S_t) \leftarrow V(S_t) + \alpha \big[G_t - V(S_t)\big]
-$$
+## 规划交互
 
-而 **TD(0)** 只向前走 **1 步**，观测到即时奖励 $R_{t+1}$ 与下一状态 $S_{t+1}$，立刻用当前对下一状态的估计值 $\gamma V(S_{t+1})$ 代替后续未知的回报 $G_{t+1}$：
+- **`<RandomWalkArena />`**：5 状态随机游走动态动画 + 真实 SVG RMS 误差折线图：小人实时游走更新估计柱，下方绘出多组 α 下 TD(0) 完胜 MC 的 RMS 收敛曲线
 
-$$
-V(S_t) \leftarrow V(S_t) + \alpha \Big[\underbrace{R_{t+1} + \gamma V(S_{t+1})}_{\text{TD 目标 (TD Target)}} - V(S_t)\Big]
-$$
+## 规划动效
 
-括号中的差值被称为 **TD 误差（TD Error）**，记作 $\delta_t$：
-
-$$
-\delta_t \doteq R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
-$$
-
-### 🎬 Remotion 动作讲解：TD 自举目标与 $\delta_t$ 误差牵引
-
-<MotionPlayer id="td-error" />
-
----
-
-## 2. 为什么 TD 往往比 MC 收敛更快？
-
-1. **完全在线、每步更新**：无需等待回合结束，甚至可用于永不终止的持续式任务；
-2. **方差显著更低**：MC 的目标 $G_t$ 累加了未来几十步所有随机动作和随机状态转移的噪声；而 TD 目标只包含**单步随机性**，用一点点初期的自举偏差换取了方差的大幅下降。
-
-### 📊 交互实验：5 状态随机游走上 TD(0) vs MC 实时PK
-
-<RandomWalkTDvsMC />
+- 🎬 **`td-spring-physics`**：物理弹簧力学风：V(S_t) 滑块与 TD 目标之间连着一根带物理弹性形变的红弹簧，δ_t 产生的拉力按步长 α 精准牵引估计更新
 
 <Cards>
-  <Card title="下一节：SARSA 在策略 TD 控制" href="/docs/06-temporal-difference/02-sarsa" description="将 TD(0) 从状态价值 V 推广到动作价值 Q，形成五元组 (S, A, R, S′, A′) 控制循环。" />
+  <Card title="下一节：6.2 SARSA 与 Q-learning：悬崖边的安全与激进" href="/docs/06-temporal-difference/02-sarsa-and-qlearning" />
 </Cards>

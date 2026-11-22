@@ -1,0 +1,10 @@
+{
+  "title": "第 7 章：函数近似与深度 Q 网络 (DQN 家族)",
+  "icon": "Cpu",
+  "pages": [
+    "index",
+    "02-dqn-core",
+    "03-double-dueling-per",
+    "04-rainbow"
+  ]
+}

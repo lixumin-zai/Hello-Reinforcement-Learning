@@ -1,0 +1,9 @@
+{
+  "title": "第 2 章：多臂老虎机——探索与利用的博弈",
+  "icon": "Dices",
+  "pages": [
+    "index",
+    "02-epsilon-and-nonstationary",
+    "03-ucb-thompson-gradient"
+  ]
+}

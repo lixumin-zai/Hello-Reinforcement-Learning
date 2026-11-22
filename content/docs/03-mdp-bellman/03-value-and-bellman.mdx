@@ -1,0 +1,33 @@
+---
+title: '3.3 价值函数与 Bellman 方程深度推导'
+description: '彻底打通 v_π、q_π、优势函数 A_π，掌握 Bellman 期望方程（矩阵闭式解）与最优方程。'
+icon: 'Sigma'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 状态价值 v_π(s)、动作价值 q_π(s,a) 与优势函数 A_π(s,a)
+- Bellman 期望方程的逐行推导与线性矩阵闭式解
+- Bellman 最优方程与最优策略的存在性
+- 为什么无模型算法偏爱 q_* 而不是 v_*
+
+## 规划交互
+
+- **`<BellmanCellDissector />`**：交互式 Bellman 单格解剖器：点击 4×4 网格任意一格，右侧展开该格完整两层备份树，悬停节点/边同步高亮公式项与实时数值
+
+## 规划动效
+
+- 🎬 **`bellman-tree-morph`**：数学黑板树状形变风：从叶子状态价值沿概率边发光汇聚至动作节点 q(s,a)，再加权/取 max 汇聚至根状态 v(s)，同步高亮方程对应符号
+
+<Cards>
+  <Card title="下一节：第 4 章：动态规划——已知模型的完美规划" href="/docs/04-dynamic-programming" />
+</Cards>

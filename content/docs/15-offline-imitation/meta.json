@@ -1,9 +1,0 @@
-{
-  "title": "第十五部分：模仿学习与离线 RL",
-  "icon": "Archive",
-  "pages": [
-    "index",
-    "02-inverse-rl",
-    "03-offline-rl"
-  ]
-}

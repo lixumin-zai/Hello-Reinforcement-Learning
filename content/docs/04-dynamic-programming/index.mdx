@@ -1,50 +1,33 @@
 ---
-title: '策略评估'
-description: '迭代求解 V^π：Bellman 期望方程的不动点。'
+title: '4.1 迭代策略评估与压缩映射收敛证明'
+description: '为什么反复迭代 Bellman 期望算子必然收敛到唯一真值？手算 2×2 网格并亲手画地图实验。'
 icon: 'Calculator'
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
-import { PolicyEvaluationStepper } from '@/components/docs/04-dynamic-programming/PolicyEvaluationStepper';
-import { MotionPlayer } from '@/components/motion/MotionPlayer';
 
-当环境的转移概率模型 $p(s', r \mid s, a)$ 完全已知时，我们可以通过**动态规划（Dynamic Programming, DP）**直接把 Bellman 方程转化为迭代更新规则，精确求解价值函数与最优策略。
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
 
----
-
-## 1. 迭代策略评估（Iterative Policy Evaluation）
-
-给定任意一个策略 $\pi$，怎么算出它的状态价值函数 $v_\pi(s)$？做法非常直接：把 Bellman 期望方程的等号变成**赋值更新号**，从任意初始值 $V_0(s) = 0$ 开始，对所有状态 $s \in \mathcal{S}$ 反复扫描：
-
-$$
-V_{k+1}(s) \doteq \sum_{a \in \mathcal{A}} \pi(a \mid s) \sum_{s', r} p(s', r \mid s, a)\Big[r + \gamma V_k(s')\Big]
-$$
-
----
-
-## 2. 为什么一定收敛？压缩映射定理
-
-定义 Bellman 期望算子 $\mathcal{T}^\pi$：$(\mathcal{T}^\pi V)(s) = \sum_a \pi(a\mid s)\sum_{s',r} p(s',r\mid s,a)[r + \gamma V(s')]$。在无穷范数 $\|V\|_\infty = \max_s |V(s)|$ 下，对于任意两个价值函数 $U, V$：
-
-$$
-\|\mathcal{T}^\pi U - \mathcal{T}^\pi V\|_\infty \le \gamma \|U - V\|_\infty
-$$
-
-只要 $0 \le \gamma < 1$（或存在必然到达的终止状态），$\mathcal{T}^\pi$ 就是一个 **$\gamma$-压缩映射（$\gamma$-Contraction）**。由 Banach 不动点定理，无论初值 $V_0$ 如何选取，序列 $V_k$ 都以几何速率 $\gamma^k$ 唯一收敛到真实价值 $v_\pi$。
-
-### 🎬 Remotion 动作讲解：价值扫描水波扩散
-
-<MotionPlayer id="policy-evaluation-sweep" />
-
-### 📊 交互实验：逐轮观察迭代策略评估与最大变化量 $\Delta_k$
-
-<PolicyEvaluationStepper />
-
-<Callout type="tip" title="同步更新 vs 原地更新 (In-Place DP)">
-  同步更新维护新旧两张表 $V_k$ 与 $V_{k+1}$；而在实际编程中，我们通常直接覆盖同一个数组 $V(s)$（即 Gauss-Seidel 原地更新），刚算出来的新价值立刻供相邻状态使用，收敛速度往往更快。
+<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
 </Callout>
 
+## 核心知识点
+
+- 迭代策略评估算法（同步更新 vs 原地更新）
+- Banach 不动点定理与 γ-压缩映射证明
+- 手算 2×2 网格前 3 轮扫描算例
+- Python 完整实现代码
+
+## 规划交互
+
+- **`<GridPaintDPLab />`**：可绘制地图的 DP 单格显微镜：支持画笔放置墙壁/冰面打滑/陷阱/宝藏，单格步进高亮 4 邻居备份，并绘制 Δ_k 对数衰减曲线
+
+## 规划动效
+
+- 🎬 **`contraction-mapping`**：等高线几何空间风：二维价值向量平面 (V(s₁), V(s₂)) 上，两个相距遥远的初值点经 Bellman 算子迭代映射后螺旋收缩至唯一不动点
+
 <Cards>
-  <Card title="下一节：策略迭代" href="/docs/04-dynamic-programming/02-policy-iteration" description="算出 v_π 后，如何利用策略改进定理一步步升级到最优策略 π*？" />
+  <Card title="下一节：4.2 策略迭代、价值迭代与维度灾难" href="/docs/04-dynamic-programming/02-policy-and-value-iteration" />
 </Cards>

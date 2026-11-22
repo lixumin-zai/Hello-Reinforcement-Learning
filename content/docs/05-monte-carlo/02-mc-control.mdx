@@ -1,29 +1,29 @@
 ---
-title: '蒙特卡洛控制'
-description: '探索性起点与 ε-soft 策略。'
+title: '5.2 蒙特卡洛控制、GLIE 与最优 21 点策略涌现'
+description: '为什么无模型控制必须估计 Q(s,a)？一键训练 50,000 局 21 点，目睹经典最优策略边界浮现。'
 icon: 'Gamepad2'
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
 </Callout>
 
-## 本节知识点
+## 核心知识点
 
-- 估计 Q 而不是 V
-- 探索性起点（Exploring Starts）
-- on-policy ε-soft MC 控制
-- GLIE 条件
+- 从 V 到 Q：无模型下贪心改进为何需要动作价值
+- 探索性起点 (Exploring Starts) 的局限
+- On-Policy ε-soft MC 控制与 GLIE 收敛条件
+- 完整 Python 21 点 MC 控制代码
 
-## 规划的交互组件
+## 规划交互
 
-- **`<BlackjackPolicy />`**：Blackjack 策略表（玩家点数 × 庄家明牌），随训练回合数变化
+- **`<BlackjackPolicyTrainer />`**：21 点 MC 策略训练场：在浏览器中真实运行 500 → 50,000 局 MC Control，实时观看无可用 A / 有可用 A 两张 10×10 策略热力图长出最优停牌边界
 
 <Cards>
-  <Card title="下一节：离策略与重要性采样" href="/docs/05-monte-carlo/03-importance-sampling" />
+  <Card title="下一节：5.3 离策略学习与重要性采样方差剖析" href="/docs/05-monte-carlo/03-importance-sampling" />
 </Cards>

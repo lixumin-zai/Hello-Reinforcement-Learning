@@ -1,0 +1,33 @@
+---
+title: '7.2 DQN：经验回放与目标网络'
+description: '深度强化学习元年之作：DeepMind 如何用两招驯服深度神经网络 Q 学习，附完整 PyTorch 代码。'
+icon: 'Cpu'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 深度 Q 网络损失函数与端到端像素输入预处理
+- 经验回放缓冲区 (Experience Replay) 打破时间相关性
+- 目标网络 (Target Network) 冻结移动靶子与软更新 Polyak 平均
+- 完整 PyTorch DQN 核心训练循环代码
+
+## 规划交互
+
+- **`<DQNPipelineLab />`**：DQN 训练流水线交互解剖台：单步采集写入环形 Replay Buffer、随机抽取 Mini-batch 高亮打乱相关性、切换有/无 Target Net 对比 Loss 震荡
+
+## 规划动效
+
+- 🎬 **`dqn-industrial-pipeline`**：工程流水线风：画面帧 → 卷积特征 → Q 值决策 → 环形缓冲区转盘 → 随机采样 Batch → 在线网梯度更新与目标网周期权重拷贝
+
+<Cards>
+  <Card title="下一节：7.3 Double DQN、Dueling 网络与优先经验回放 (PER)" href="/docs/07-dqn/03-double-dueling-per" />
+</Cards>

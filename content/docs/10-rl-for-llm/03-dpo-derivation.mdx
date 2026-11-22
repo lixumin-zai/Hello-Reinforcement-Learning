@@ -1,0 +1,29 @@
+---
+title: '10.3 DPO 直接偏好优化：完整逐行数学推导'
+description: '为什么可以彻底跳过奖励模型和在线 PPO 采样？一步不漏地推导出优雅的 DPO 闭式损失。'
+icon: 'ArrowRightLeft'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★★ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 从 KL 约束最大奖励目标导出闭式最优策略 π*(y|x)
+- 反解隐式奖励 r(x,y) = β log(π/π_ref) + β log Z(x)
+- 代入 Bradley-Terry 模型消去棘手的配分函数 Z(x)
+- DPO 梯度直觉（动态错题加权）及 IPO / KTO / SimPO 变体对比
+
+## 规划交互
+
+- **`<DPOLossInstrument />`**：DPO 隐式奖励与梯度权重仪表盘：拖动好回答/差回答的对数概率比与 β，实时计算隐式奖励差、DPO 损失与错误样本上的梯度放大系数
+
+<Cards>
+  <Card title="下一节：10.4 GRPO、RLVR 与 RL 工程调试全景清单" href="/docs/10-rl-for-llm/04-grpo-and-engineering" />
+</Cards>

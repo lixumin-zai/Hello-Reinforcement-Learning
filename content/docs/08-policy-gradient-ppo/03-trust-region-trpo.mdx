@@ -1,0 +1,29 @@
+---
+title: '8.3 步子迈大会崩溃：信赖域与 TRPO'
+description: '为什么参数空间的一小步可能是策略分布的悬崖？理解替代目标、KL 散度约束与单调改进保证。'
+icon: 'ShieldCheck'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★★ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 策略崩溃现象：坏策略收集更差数据的恶性循环
+- 重要性采样替代目标 L_\{θ_old\}(θ)
+- 为什么用分布空间的 KL 散度而非参数空间的 L2 距离
+- TRPO 单调改进下界、共轭梯度与自然梯度直觉
+
+## 规划交互
+
+- **`<KLTrustRegionRadar />`**：双高斯策略 KL 信赖域雷达：拖动新策略均值 μ 与标准差 σ，实时渲染双分布重叠区、精确 D_KL 数值与超界红色警报
+
+<Cards>
+  <Card title="下一节：8.4 PPO-Clip 深度详解与 PyTorch 工程实战" href="/docs/08-policy-gradient-ppo/04-ppo-deep-dive" />
+</Cards>

@@ -1,10 +1,10 @@
 {
-  "title": "第六部分：时序差分学习",
+  "title": "第 6 章：时序差分学习——TD、SARSA、Q-learning 与资格迹",
   "icon": "Timer",
   "pages": [
     "index",
-    "02-sarsa",
-    "03-q-learning",
-    "04-double-q"
+    "02-sarsa-and-qlearning",
+    "03-double-q",
+    "04-nstep-and-traces"
   ]
 }

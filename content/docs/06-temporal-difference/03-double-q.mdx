@@ -1,0 +1,29 @@
+---
+title: '6.3 最大化偏差与 Double Q-learning'
+description: '为什么 max 算子会引发系统性正向高估？用 Jensen 不等式与经典双状态反例彻底看透 Double Q。'
+icon: 'Copy'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- Jensen 不等式证明 E[max Q] ≥ max E[Q]
+- Sutton & Barto 经典 A→B 多分支噪声陷阱反例
+- Double Q-learning 解耦「动作选择」与「价值评估」
+- 通往 Double DQN 与 TD3 双 Critic 的思想脉络
+
+## 规划交互
+
+- **`<MaxBiasTrapLab />`**：经典 A→B 陷阱环境模拟器：动态调节 B 状态分支数 k 与奖励噪声 σ，实时绘制 Q-learning 顽固误选左转 vs Double Q 迅速逃离陷阱的曲线
+
+<Cards>
+  <Card title="下一节：6.4 n 步自举、TD(λ) 与资格迹" href="/docs/06-temporal-difference/04-nstep-and-traces" />
+</Cards>

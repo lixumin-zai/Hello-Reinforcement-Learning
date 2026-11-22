@@ -1,0 +1,33 @@
+---
+title: '3.2 回报 G_t 与折扣因子 γ 的“远见”效应'
+description: '为什么 γ 不只是防发散的数学补丁？在近奖与远奖的抉择中亲眼看 γ 改变最优策略。'
+icon: 'Percent'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 分幕式与持续式任务的统一回报定义
+- 递归恒等式 G_t = R_\{t+1\} + γ G_\{t+1\}
+- 折扣因子 γ 的三重解释与有效视野 1/(1-γ)
+- γ 临界阈值如何反转智能体的最优行为
+
+## 规划交互
+
+- **`<DiscountHorizonLab />`**：折扣望远镜实验室：包含「近处 +1 糖果 vs 远处 +10 宝藏」真实迷你世界，拖动 γ 实时看到有效视野变化并在临界点反转最优路线
+
+## 规划动效
+
+- 🎬 **`discount-series-fold`**：数学黑板风：几何级数项按 γ^k 缩放并像手风琴一样折叠进括号，推演出 G_t = R_\{t+1\} + γ G_\{t+1\}
+
+<Cards>
+  <Card title="下一节：3.3 价值函数与 Bellman 方程深度推导" href="/docs/03-mdp-bellman/03-value-and-bellman" />
+</Cards>

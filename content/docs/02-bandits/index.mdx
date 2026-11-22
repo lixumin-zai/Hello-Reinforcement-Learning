@@ -1,0 +1,33 @@
+---
+title: '2.1 探索与利用困境：人机 50 轮赌场争霸赛'
+description: '亲手挑战 5 台隐藏概率老虎机，与 4 个 AI 算法同场竞技，理解增量更新与累积遗憾。'
+icon: 'Dices'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★☆☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- k 臂老虎机问题形式化与真实期望 q*(a)
+- 样本均值与 O(1) 增量更新公式完整推导
+- 累积遗憾 Regret(T) 与纯贪心锁死机制
+- 人类直觉 vs 最优探索算法的实战对比
+
+## 规划交互
+
+- **`<BanditCasinoGame />`**：完整小游戏《霓虹赌场：人机 50 轮争霸赛》：5 台带滚轮动画/拉杆/金币特效的老虎机，支持高斯/伯努利/非平稳漂移模式，4 个 AI 同种子陪跑并生成 Regret 排行榜与复盘报告
+
+## 规划动效
+
+- 🎬 **`bandit-arcade-trap`**：复古街机物理机台风：多台老虎机摇杆下压、滚轮停帧、筹码跳出，镜头推近揭示纯贪心如何因开局倒霉永久错过黄金 3 号机
+
+<Cards>
+  <Card title="下一节：2.2 ε-贪心、乐观初值与非平稳环境追踪" href="/docs/02-bandits/02-epsilon-and-nonstationary" />
+</Cards>

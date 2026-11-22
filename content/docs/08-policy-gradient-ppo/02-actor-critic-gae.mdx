@@ -1,0 +1,33 @@
+---
+title: '8.2 Actor-Critic 与广义优势估计 (GAE)'
+description: '演员行动、评论家打分：用 Critic 替代高方差完整回报，并用 GAE(γ, λ) 优雅平衡偏差与方差。'
+icon: 'Drama'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 从 REINFORCE with Baseline 到单步 Actor-Critic (TD 残差)
+- A2C / A3C 同步与异步并行采样架构
+- 广义优势估计 GAE(γ, λ) 的指数加权递推推导
+- 熵正则项 H(π) 防止策略过早塌缩
+
+## 规划交互
+
+- **`<GAESpectrumLab />`**：GAE(γ, λ) 权重光谱交互台：输入每步 TD 误差 δ_t，拖动 γ 和 λ 实时计算各步权重、优势估值以及 λ=0 (TD) 到 λ=1 (MC) 的过渡
+
+## 规划动效
+
+- 🎬 **`actor-critic-duet`**：双环矢量共舞风：Actor 采样动作与环境交互，Critic 计算 TD 优势 Â_t 后分两路同步驱动策略网络与价值网络更新
+
+<Cards>
+  <Card title="下一节：8.3 步子迈大会崩溃：信赖域与 TRPO" href="/docs/08-policy-gradient-ppo/03-trust-region-trpo" />
+</Cards>

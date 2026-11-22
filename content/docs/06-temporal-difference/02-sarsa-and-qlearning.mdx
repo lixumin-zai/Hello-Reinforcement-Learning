@@ -1,0 +1,33 @@
+---
+title: '6.2 SARSA 与 Q-learning：悬崖边的安全与激进'
+description: '同屏动画对比在策略 SARSA、离策略 Q-learning 与 Expected SARSA，手写可运行完整训练代码。'
+icon: 'Footprints'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- SARSA 五元组 (S, A, R, S′, A′) 与在策略风险意识
+- Q-learning 离策略 max 备份与 Bellman 最优方程近似
+- Expected SARSA 如何消除下一步采样方差
+- 悬崖行走在线收益 vs 贪心最优路径的经典悖论
+
+## 规划交互
+
+- **`<CliffWalkingRace />`**：4×12 悬崖行走双智能体同屏动画竞速台：SARSA 绿队与 Q-learning 蓝队实时同屏行走（含掉崖闪烁动画、Q 表热力图与回合奖励实时折线对比）
+
+## 规划动效
+
+- 🎬 **`sarsa-vs-q-split`**：分屏竞速与四象限着色风：上半屏 SARSA 绕行安全高地、下半屏 Q-learning 贴崖疾行并展示单步 max Q(s′,·) 离策略更新
+
+<Cards>
+  <Card title="下一节：6.3 最大化偏差与 Double Q-learning" href="/docs/06-temporal-difference/03-double-q" />
+</Cards>

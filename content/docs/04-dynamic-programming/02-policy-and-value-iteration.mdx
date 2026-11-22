@@ -1,0 +1,33 @@
+---
+title: '4.2 策略迭代、价值迭代与维度灾难'
+description: '证明策略改进定理，同屏竞速对比 PI 与 VI 的备份效率，剖析动态规划面对大状态空间的瓶颈。'
+icon: 'Zap'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 策略改进定理完整证明与贪心改进
+- 策略迭代 (PI) 为什么常常只需 3~5 轮即收敛
+- 价值迭代 (VI)：把评估截断为 1 步扫描
+- 异步动态规划与维度灾难 O(|S|²|A|)
+
+## 规划交互
+
+- **`<PIvsVIRace />`**：PI vs VI 同屏竞速台：在同一自定义网格上并排运行策略迭代与价值迭代，实时统计 Bellman 备份总次数、轮次与误差曲线
+
+## 规划动效
+
+- 🎬 **`value-wavefield`**：地形等高线与热力水波风：荧光价值波浪从目标点向外衍射绕过墙壁，策略风场箭头沿等高线梯度顺势对齐最优路径
+
+<Cards>
+  <Card title="下一节：4.3 广义策略迭代 (GPI)：统摄全书的顶层视角" href="/docs/04-dynamic-programming/03-gpi" />
+</Cards>

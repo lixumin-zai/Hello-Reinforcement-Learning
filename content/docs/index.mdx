@@ -1,89 +1,47 @@
 ---
-title: 'Hello RL 全景指南'
-description: '一个用交互组件与动效讲解，带你从零走到 RLHF / GRPO 的强化学习学习平台。'
+title: 'Hello RL 全景交互教程'
+description: '10 章 34 节零空壳体系：用可玩小游戏、真实物理仿真、严谨数学推导、PyTorch 代码与定制 Remotion 动效，从零掌握强化学习与大模型后训练。'
 icon: 'Sparkles'
 ---
 
 import { Cards, Card } from 'fumadocs-ui/components/card';
 import { Callout } from 'fumadocs-ui/components/callout';
 
-## 为什么要学强化学习？
+## 这是一本什么样的强化学习教程？
 
-监督学习教会机器“模仿正确答案”，而**强化学习（Reinforcement Learning, RL）**教会机器“在没有标准答案的世界里，通过试错找到最好的做法”。
+强化学习（Reinforcement Learning, RL）不是一堆可以背诵的 API 字典，而是一门关于**序贯决策、试错探索与长期权衡**的数学与算法学科。
 
-从击败世界冠军的 AlphaGo，到让 ChatGPT 学会“好好说话”的 RLHF，再到让 DeepSeek-R1 学会长链推理的 GRPO —— 过去十年里几乎所有“让 AI 学会决策”的突破，背后都是同一套数学：
+为了让抽象的 Bellman 方程、重要性采样、致命三元组、PPO 截断与 GRPO 组相对优势真正变成你的直觉，本教程按 **4 个难度阶梯、10 章 34 节**编排，每一节都将四种载体融合在一起：
 
-$$
-\pi^* = \arg\max_\pi \; \mathbb{E}_\pi\Big[\sum_{t=0}^{\infty} \gamma^t R_{t+1}\Big]
-$$
-
-本指南分为 **5 篇、19 个部分**，从最简单的多臂老虎机开始，一路走到深度强化学习与大模型后训练。
-
----
-
-## 三种阅读方式
-
-本站的每个知识点都会用三种形式“共奏”：
-
-| 形式 | 负责什么 | 你应该怎么用 |
+| 学习维度 | 我们怎么做 | 你将收获什么 |
 | --- | --- | --- |
-| 📝 **正文** | 讲清楚“为什么”：直觉、推导、算法伪代码 | 慢慢读，推一遍公式 |
-| 📊 **交互组件** | 讲清楚“参数”：拖动 γ、α、ε，立刻看到结果 | 亲手调，把直觉调出来 |
-| 🎬 **动效讲解** | 讲清楚“过程”：一次更新、一次备份是怎么发生的 | 反复播放、逐帧拖动 |
-
-<Callout type="info" title="同一套算法内核">
-  所有交互组件与动效讲解都调用 `src/lib/rl` 中同一套**确定性**的算法实现（带种子的随机数）。你在动画里看到的 Q-learning，和你在交互组件里亲手训练的 Q-learning，是同一段代码。
-</Callout>
+| 🎮 **完整小游戏与物理仿真** | 霓虹老虎机人机争霸赛、21 点赌场、悬崖双智能体竞速、键盘驾驶山地车、平衡倒立摆、井字棋 MCTS 实时搜索树 | 先亲手“玩崩”感受痛点，再看 RL 算法如何优雅破局 |
+| 📐 **分步数学推导 + 手算算例** | 拒绝直接甩结论：把增量均值、Bellman 递归、策略梯度 log-derivative、DPO 闭式解一步步推给你看 | 真正看懂公式里每一个符号与负号存在的理由 |
+| 🎬 **多世界观 Remotion 动效** | 复古街机、3Blue1Brown 数学黑板、等高线水波、绿绒牌桌时间倒带、物理弹簧、工程遥测、AI Token 流 | 逐帧看清算法内部的动态因果，支持暂停/拖帧/倍速 |
+| 💻 **可运行 Python / PyTorch 代码** | 核心算法全部提供干净、自包含的 Python 实现，并附高频误区剖析与交互自测题 | 学完就能直接在本地复现与调参 |
 
 ---
 
-## 学习路径推荐
+## 四个学习阶梯总览
 
-### 🎯 路径一：入门速通（约 6 小时）
-
-只想搞懂 RL 在做什么、核心算法长什么样。
-
-<Cards>
-  <Card title="第一部分：强化学习导论" href="/docs/01-introduction" />
-  <Card title="第二部分：马尔可夫决策过程" href="/docs/02-mdp" />
-  <Card title="第四部分：动态规划" href="/docs/04-dynamic-programming" />
-  <Card title="第六部分：时序差分学习" href="/docs/06-temporal-difference" />
-</Cards>
-
-### 🧠 路径二：深度强化学习工程师
-
-需要训练真实任务的智能体（游戏、机器人、推荐）。
-
-<Cards>
-  <Card title="第九部分：深度 Q 网络" href="/docs/09-deep-q-learning" />
-  <Card title="第十部分：策略梯度" href="/docs/10-policy-gradient" />
-  <Card title="第十一部分：信赖域与 PPO" href="/docs/11-trust-region" />
-  <Card title="第十八部分：工程实践" href="/docs/18-practice" />
-</Cards>
-
-### 🤖 路径三：大模型后训练（RLHF / DPO / GRPO）
-
-关心 LLM 对齐与推理模型。
-
-<Cards>
-  <Card title="第十部分：策略梯度" href="/docs/10-policy-gradient" />
-  <Card title="第十一部分：信赖域与 PPO" href="/docs/11-trust-region" />
-  <Card title="第十七部分：强化学习与大模型" href="/docs/17-rl-for-llm" />
-  <Card title="项目四：GRPO 微调小模型" href="/docs/19-projects/04-grpo-llm" />
-</Cards>
-
----
-
-## 全书结构
-
-| 篇 | 部分 | 核心问题 |
+| 阶梯 | 章节 | 核心跨越 |
 | --- | --- | --- |
-| 基础篇 | 01 导论 · 02 MDP · 03 老虎机 | RL 问题如何形式化？探索与利用如何平衡？ |
-| 表格方法篇 | 04 DP · 05 MC · 06 TD · 07 资格迹 | 状态可枚举时，如何求出最优策略？ |
-| 深度强化学习篇 | 08 函数近似 · 09 DQN · 10 策略梯度 · 11 PPO · 12 连续控制 | 状态巨大、动作连续时怎么办？ |
-| 前沿专题篇 | 13 基于模型 · 14 探索 · 15 离线/模仿 · 16 多智能体 · 17 大模型 | RL 的前沿在哪里？ |
-| 实践篇 | 18 工程实践 · 19 实战项目 | 如何真正把模型训起来？ |
+| **L1 · 直觉与博弈入门** | [第 1 章 世界观](/docs/01-worldview) · [第 2 章 多臂老虎机](/docs/02-bandits) | 理解试错、延迟奖励、信用分配与探索-利用博弈 |
+| **L2 · 数学核心与表格求解** | [第 3 章 MDP & Bellman](/docs/03-mdp-bellman) · [第 4 章 动态规划](/docs/04-dynamic-programming) · [第 5 章 蒙特卡洛](/docs/05-monte-carlo) · [第 6 章 时序差分](/docs/06-temporal-difference) | 吃透强化学习最核心的数学骨架与所有经典表格算法 |
+| **L3 · 深度强化学习** | [第 7 章 函数近似与 DQN](/docs/07-dqn) · [第 8 章 策略梯度与 PPO](/docs/08-policy-gradient-ppo) | 攻克连续状态、神经网络不稳定（致命三元组）与策略信赖域 |
+| **L4 · 前沿规划与大模型后训练** | [第 9 章 连续控制与 MCTS](/docs/09-control-and-planning) · [第 10 章 RLHF / DPO / GRPO](/docs/10-rl-for-llm) | 贯通 SAC、AlphaZero/MuZero 与 DeepSeek-R1 推理模型强化学习 |
 
-<Callout type="tip" title="准备好了吗？">
-  先花 3 分钟浏览 [符号约定](/docs/notation)，然后从 [第一部分：强化学习导论](/docs/01-introduction) 开始吧！
+---
+
+## 推荐学习路径
+
+<Cards>
+  <Card title="🚀 零基础完整通关" href="/docs/01-worldview" description="从第 1 章《迷雾寻宝》与第 2 章《霓虹老虎机赌场》开启，一路打通到 GRPO。" />
+  <Card title="📐 符号速查手册" href="/docs/notation" description="全书统一沿用 Sutton & Barto 第二版数学记号，随时对照。" />
+  <Card title="🤖 大模型后训练专线" href="/docs/08-policy-gradient-ppo" description="已有基础的工程师可直接从第 8 章 PPO 切入第 10 章 RLHF / DPO / GRPO。" />
+  <Card title="🎬 Remotion 动效剧场" href="/motion" description="集中浏览全站所有定制视觉风格的算法动作讲解镜头。" />
+</Cards>
+
+<Callout type="tip" title="开始之前的小建议">
+  遇到每一章的小游戏（比如第 2 章的多臂老虎机人机争霸赛、第 7 章的山地车、第 8 章的倒立摆），强烈建议**先亲手玩完一局**再往下读公式——当你切身体会过“我该继续点目前最好的那台机器，还是冒险试一台没摸过的？”，UCB 与 Thompson Sampling 的数学优雅感会瞬间击中你。
 </Callout>

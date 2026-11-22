@@ -1,10 +1,9 @@
 {
-  "title": "第四部分：动态规划",
+  "title": "第 4 章：动态规划——已知模型的完美规划",
   "icon": "Grid3x3",
   "pages": [
     "index",
-    "02-policy-iteration",
-    "03-value-iteration",
-    "04-gpi"
+    "02-policy-and-value-iteration",
+    "03-gpi"
   ]
 }

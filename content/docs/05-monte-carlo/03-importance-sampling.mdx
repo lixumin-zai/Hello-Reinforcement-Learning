@@ -1,29 +1,32 @@
 ---
-title: '离策略与重要性采样'
-description: '用行为策略的数据评估目标策略。'
+title: '5.3 离策略学习与重要性采样方差剖析'
+description: '如何用“别人玩出来的数据”（行为策略 b）去评估“我自己的策略”（目标策略 π）？直面连乘方差爆炸。'
 icon: 'Scale'
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
 </Callout>
 
-## 本节知识点
+## 核心知识点
 
-- 目标策略与行为策略
-- 重要性采样比 ρ
-- 普通 vs 加权重要性采样
-- 方差问题
+- 目标策略 π、行为策略 b 与覆盖性假设 (Coverage)
+- 重要性采样比 ρ_\{t:T-1\} 的数学推导
+- 普通重要性采样（无偏但方差可能无穷大）vs 加权重要性采样（有偏但一致且方差极低）
 
-## 规划的交互组件
+## 规划交互
 
-- **`<ImportanceSamplingLab />`**：调整两个策略的差异，比较普通/加权 IS 估计的收敛曲线与方差
+- **`<ImportanceSamplingLab />`**：重要性采样方差爆炸实验室：调节策略差异度与回合步长 T，实时绘制普通 IS 剧烈尖峰 vs 加权 IS 平滑收敛对比曲线
+
+## 规划动效
+
+- 🎬 **`is-reweight-scale`**：牌桌杠杆重加权风：不同轨迹样本乘以重要性比 ρ 后发生体积膨胀/萎缩，直观呈现极端轨迹如何把普通均值拉偏
 
 <Cards>
-  <Card title="下一节：第六部分：时序差分学习" href="/docs/06-temporal-difference" />
+  <Card title="下一节：第 6 章：时序差分学习——TD、SARSA、Q-learning 与资格迹" href="/docs/06-temporal-difference" />
 </Cards>

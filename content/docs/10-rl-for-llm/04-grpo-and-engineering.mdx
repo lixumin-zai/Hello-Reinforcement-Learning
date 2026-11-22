@@ -1,0 +1,34 @@
+---
+title: '10.4 GRPO、RLVR 与 RL 工程调试全景清单'
+description: '揭秘 DeepSeek-R1 如何用组内相对优势省掉 Critic 激发长思维链，附完整 PyTorch/TRL 代码与训练异常曲线诊断室。'
+icon: 'Lightbulb'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★★ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 可验证奖励 (RLVR) 规避神经 RM 的奖励黑客
+- GRPO 组采样与相对优势 Â_i = (r_i - μ) / σ 省去半数显存
+- “顿悟时刻 (Aha Moment)”与长思维链的自发涌现
+- 完整 TRL / PyTorch GRPO 实战代码 + RL 训练异常曲线排查手册
+
+## 规划交互
+
+- **`<GRPOGroupLab />`**：GRPO 组采样实战台：自定义 G=4~8 条数学推理链的正确率与格式得分，实时计算组均值/标准差、相对优势条与全对/全错时方差归零边界
+- **`<RLCurveDoctor />`**：RL 训练异常曲线诊断室：选择 5 种经典翻车曲线（熵塌缩 / KL 爆炸 / Value 过拟合 / 奖励黑客 / 梯度爆炸），交互式展示根因与修复处方
+
+## 规划动效
+
+- 🎬 **`grpo-laser-verify`**：AI 终端激光质检流水线风：同一题并行喷射 4 条 &lt;think&gt; 推理链 → 规则验证激光逐条打勾/打叉 → 组内归一化为红绿优势光谱 → 反向强化正确推理路径
+
+<Cards>
+  <Card title="下一节：回到目录" href="/docs" />
+</Cards>

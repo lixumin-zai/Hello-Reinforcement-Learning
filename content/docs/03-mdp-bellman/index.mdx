@@ -1,0 +1,33 @@
+---
+title: '3.1 马尔可夫性、状态转移与 POMDP'
+description: '从马尔可夫链到 MDP 五元组 (S, A, P, R, γ)，严格理解“无记忆性”的工程构造。'
+icon: 'Network'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★☆☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 马尔可夫性质的数学定义与直观例子（围棋 vs 堆叠 4 帧 Atari）
+- MP → MRP → MDP 五元组演进
+- 四元动力学 p(s′,r|s,a) 与边缘化公式
+- 部分可观测环境 (POMDP) 与信念状态
+
+## 规划交互
+
+- **`<InteractiveStudentMDP />`**：可编程拓扑图学生 MDP：可视化转移概率扇形，支持手动调整概率滑块并一键采样多条轨迹统计平稳分布
+
+## 规划动效
+
+- 🎬 **`markov-chalkboard`**：3Blue1Brown 数学黑板风：发光拓扑节点、粒子沿概率边游走与状态访问频率分布平滑收敛
+
+<Cards>
+  <Card title="下一节：3.2 回报 G_t 与折扣因子 γ 的“远见”效应" href="/docs/03-mdp-bellman/02-return-and-discount" />
+</Cards>

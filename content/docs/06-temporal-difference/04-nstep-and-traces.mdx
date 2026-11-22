@@ -1,0 +1,33 @@
+---
+title: '6.4 n 步自举、TD(λ) 与资格迹'
+description: '在单步 TD 与完整 MC 之间架起连续桥梁：理解前向 λ-回报与后向资格迹的优雅等价。'
+icon: 'Sparkles'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- n 步回报 G_\{t:t+n\} 与偏差-方差连续谱
+- λ-回报几何加权平均（前向视角）
+- 资格迹 z_t（后向视角）：累积迹 vs 替换迹
+- 离线等价定理与 SARSA(λ) 实现
+
+## 规划交互
+
+- **`<EligibilityTraceMaze />`**：荧光资格迹迷宫实验室：控制或自动运行智能体，走过的格子留下按 (γλ)^k 衰减的荧光尾迹，触碰终局奶酪瞬间整条荧光路径同步点亮更新
+
+## 规划动效
+
+- 🎬 **`eligibility-glow-trail`**：物理光迹回传风：智能体移动留下衰减荧光尾迹，抵达终点时一道高能脉冲沿光迹瞬间照亮并加权更新所有近期状态
+
+<Cards>
+  <Card title="下一节：第 7 章：函数近似与深度 Q 网络 (DQN 家族)" href="/docs/07-dqn" />
+</Cards>

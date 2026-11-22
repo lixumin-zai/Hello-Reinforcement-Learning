@@ -1,9 +1,0 @@
-{
-  "title": "第七部分：n 步自举与资格迹",
-  "icon": "Route",
-  "pages": [
-    "index",
-    "02-td-lambda",
-    "03-eligibility-traces"
-  ]
-}

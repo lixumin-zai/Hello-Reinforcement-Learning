@@ -1,0 +1,33 @@
+---
+title: '9.3 蒙特卡洛树搜索 (MCTS) 与 AlphaZero / MuZero'
+description: '与真实 MCTS AI 对弈井字棋并透视它的搜索树生长，理解 AlphaGo/AlphaZero 自博弈与 MuZero 的终极统一。'
+icon: 'TreePine'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- MCTS 四阶段循环：Selection / Expansion / Simulation / Backpropagation
+- UCT 公式与探索常数 C_puct
+- AlphaZero：用策略价值网络 P(s,a), V(s) 替换随机 Rollout
+- MuZero：在不告知游戏规则下学习隐空间动力学规划
+
+## 规划交互
+
+- **`<MCTSTicTacToeGame />`**：完整小游戏《井字棋 MCTS 透视对弈台》：人机实战对弈，每步右侧实时生长真实的 MCTS 树结构（标注访问数 N、胜率 W/N 与 UCT 值），支持慢放四阶段
+
+## 规划动效
+
+- 🎬 **`mcts-living-tree`**：有机分形树生长风：发光脉络沿 UCT 最大分支下探（选择）→ 萌发新叶节点（扩展）→ 虚拟快进推演终局（模拟）→ 胜负光球沿枝干回流刷新祖先 W/N（回传）
+
+<Cards>
+  <Card title="下一节：第 10 章：强化学习与大语言模型——RLHF、DPO 与 GRPO" href="/docs/10-rl-for-llm" />
+</Cards>

@@ -1,9 +1,0 @@
-{
-  "title": "第十六部分：多智能体强化学习",
-  "icon": "Users",
-  "pages": [
-    "index",
-    "02-marl-algorithms",
-    "03-self-play"
-  ]
-}

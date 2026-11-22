@@ -1,0 +1,9 @@
+{
+  "title": "第 1 章：强化学习世界观与决策直觉",
+  "icon": "Compass",
+  "pages": [
+    "index",
+    "02-paradigms-and-nonstationarity",
+    "03-modeling-and-history"
+  ]
+}

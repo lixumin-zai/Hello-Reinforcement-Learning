@@ -1,0 +1,29 @@
+---
+title: '9.1 连续动作控制：DDPG、TD3 与最大熵 SAC'
+description: '当动作是连续力矩向量无法遍历 argmax 时，看确定性策略梯度与最大熵框架如何统治机器人控制。'
+icon: 'Bot'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 高斯策略、重参数化技巧与 tanh 有界动作的雅可比修正
+- DDPG 与 TD3 三板斧（双 Critic 取 min / 延迟策略更新 / 目标策略平滑）
+- 最大熵强化学习目标与软贝尔曼方程
+- SAC 算法流程与自动温度 α 调节
+
+## 规划交互
+
+- **`<SACEntropyLab />`**：最大熵 SAC 多峰分布实验室：在双峰连续奖励曲面上调节温度 α，观察策略从坍缩到单一峰平滑转变为双峰鲁棒覆盖，兼看双 Critic 取 min 抑制高估
+
+<Cards>
+  <Card title="下一节：9.2 基于模型的 RL：Dyna-Q 与 Dreamer 世界模型" href="/docs/09-control-and-planning/02-dyna-and-world-models" />
+</Cards>

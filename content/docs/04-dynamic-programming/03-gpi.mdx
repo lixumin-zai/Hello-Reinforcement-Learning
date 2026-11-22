@@ -1,0 +1,32 @@
+---
+title: '4.3 广义策略迭代 (GPI)：统摄全书的顶层视角'
+description: '把策略评估与策略改进看作两股相互拉扯的力量，串联起从 DP 到 PPO 的几乎所有强化学习算法。'
+icon: 'Infinity'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 评估流形 V = v_π 与改进流形 π = greedy(V) 的几何交互
+- 不同粒度下的 GPI：PI / VI / 异步 DP / MC / TD / Actor-Critic
+- 竞争与合作如何共同收敛到最优不动点 (v*, π*)
+
+## 规划交互
+
+- **`<GPIManifoldExplorer />`**：真实 SVG 交互式 GPI 双流形收敛图：切换 PI / VI / 在线 TD 三种模式，动态演示截然不同的锯齿收敛步态
+
+## 规划动效
+
+- 🎬 **`gpi-camera-zigzag`**：等高线双流形跟拍风：镜头平滑追踪状态点在两条约束线间锯齿弹跳并最终锁定星标交点 (v*, π*)
+
+<Cards>
+  <Card title="下一节：第 5 章：蒙特卡洛方法——从真实轨迹中学习" href="/docs/05-monte-carlo" />
+</Cards>

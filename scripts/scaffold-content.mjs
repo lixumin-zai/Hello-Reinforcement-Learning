@@ -1,13 +1,8 @@
 #!/usr/bin/env node
 /**
- * 内容框架脚手架：framework/framework.json → content/docs 骨架 + outline.md
+ * 内容框架脚手架：framework/framework.json → content/docs 骨架 + outline.md + 动效总注册表
  *
- * 设计原则：
- *  - framework.json 是“内容框架”的唯一真源（章节、小节、知识点、交互组件、动效）。
- *  - 本脚本是幂等的：只创建不存在的文件，绝不覆盖已写好的正文。
- *  - meta.json 与 outline.md 每次都会根据框架重新生成（它们不包含手写内容）。
- *
- * 用法：node scripts/scaffold-content.mjs [--force-meta]
+ * 用法：node scripts/scaffold-content.mjs
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,13 +13,11 @@ const fw = JSON.parse(fs.readFileSync(path.join(root, 'framework/framework.json'
 const docsDir = path.join(root, 'content/docs');
 const motionDir = path.join(root, 'src/motion/compositions');
 
-/** 侧边栏分组（顺序即侧边栏顺序） */
 const GROUPS = [
-  { title: '基础篇', chapters: ['01-introduction', '02-mdp', '03-bandits'] },
-  { title: '表格方法篇', chapters: ['04-dynamic-programming', '05-monte-carlo', '06-temporal-difference', '07-n-step-eligibility'] },
-  { title: '深度强化学习篇', chapters: ['08-function-approximation', '09-deep-q-learning', '10-policy-gradient', '11-trust-region', '12-continuous-control'] },
-  { title: '前沿专题篇', chapters: ['13-model-based', '14-exploration', '15-offline-imitation', '16-multi-agent', '17-rl-for-llm'] },
-  { title: '实践篇', chapters: ['18-practice', '19-projects'] },
+  { title: 'L1 · 直觉与博弈入门', chapters: ['01-worldview', '02-bandits'] },
+  { title: 'L2 · 数学核心与表格求解', chapters: ['03-mdp-bellman', '04-dynamic-programming', '05-monte-carlo', '06-temporal-difference'] },
+  { title: 'L3 · 深度强化学习', chapters: ['07-dqn', '08-policy-gradient-ppo'] },
+  { title: 'L4 · 前沿规划与大模型后训练', chapters: ['09-control-and-planning', '10-rl-for-llm'] },
 ];
 
 const created = [];
@@ -35,11 +28,11 @@ const write = (file, content, { overwrite = false } = {}) => {
   created.push(path.relative(root, file));
 };
 
-/** 转义 MDX 正文中的 { } < >，避免被解析为 JSX 表达式 */
 const esc = (s) => String(s).replace(/[{}<>]/g, (c) => ({ '{': '\\{', '}': '\\}', '<': '&lt;', '>': '&gt;' })[c]);
 const yamlStr = (s) => `'${String(s).replace(/'/g, "''")}'`;
+const stars = (n) => '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
 
-// ---------- 1. 根 meta.json ----------
+// 1. 根 meta.json
 const allIds = fw.chapters.map((c) => c.id);
 const grouped = GROUPS.flatMap((g) => g.chapters);
 const missing = allIds.filter((id) => !grouped.includes(id));
@@ -58,7 +51,7 @@ write(
   { overwrite: true },
 );
 
-// ---------- 2. 每章 meta.json + 小节骨架 ----------
+// 2. 每章 meta.json + 小节骨架 + 动效注册入口
 for (const ch of fw.chapters) {
   const dir = path.join(docsDir, ch.id);
   write(
@@ -87,21 +80,21 @@ for (const ch of fw.chapters) {
       "import { Callout } from 'fumadocs-ui/components/callout';",
       "import { Cards, Card } from 'fumadocs-ui/components/card';",
       '',
-      '{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}',
+      '{/* @status: skeleton —— 待按六段式深度标准填充 */}',
       '',
-      '<Callout type="warn" title="🚧 本节正在建设中">',
-      '  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。',
+      `<Callout type="warn" title="难度 ${stars(sec.difficulty ?? ch.difficulty)} · 待填充">`,
+      '  本节正在按重构计划逐章深度编写。',
       '</Callout>',
       '',
-      '## 本节知识点',
+      '## 核心知识点',
       '',
       ...sec.points.map((p) => `- ${esc(p)}`),
       '',
       ...(sec.components.length
-        ? ['## 规划的交互组件', '', ...sec.components.map((c) => `- **\`<${c.name} />\`**：${esc(c.idea)}`), '']
+        ? ['## 规划交互', '', ...sec.components.map((c) => `- **\`<${c.name} />\`**：${esc(c.idea)}`), '']
         : []),
       ...(sec.motions.length
-        ? ['## 规划的动效讲解', '', ...sec.motions.map((m) => `- 🎬 **\`${m.id}\`**：${esc(m.idea)}`), '']
+        ? ['## 规划动效', '', ...sec.motions.map((m) => `- 🎬 **\`${m.id}\`**：${esc(m.idea)}`), '']
         : []),
       '<Cards>',
       `  <Card title=${JSON.stringify(`下一节：${nextTitle}`)} href=${JSON.stringify(nextHref)} />`,
@@ -112,20 +105,19 @@ for (const ch of fw.chapters) {
     write(path.join(dir, `${sec.slug}.mdx`), body);
   });
 
-  // 动效流：每章一个 composition 注册文件（并行写作时互不冲突）
   write(
     path.join(motionDir, ch.id, 'index.ts'),
     [
       "import type { MotionEntry } from '../../types';",
       '',
-      `/** ${ch.title} 的动效讲解注册表（由动效流填充） */`,
+      `/** ${ch.title} 的动效讲解注册表 */`,
       'export const entries: MotionEntry[] = [];',
       '',
     ].join('\n'),
   );
 }
 
-// ---------- 3. 动效总注册表（按章节聚合） ----------
+// 3. 动效总注册表
 const toIdent = (id) => 'ch' + id.replace(/-/g, '_');
 write(
   path.join(motionDir, 'index.ts'),
@@ -142,19 +134,19 @@ write(
   { overwrite: true },
 );
 
-// ---------- 4. outline.md（人类可读的大纲视图） ----------
+// 4. outline.md
 const outline = [
-  `# ${fw.project}：强化学习全景交互指南`,
+  `# ${fw.project}：深度全景交互教程大纲（10 章 34 节）`,
   '',
-  '> ⚠️ 本文件由 `node scripts/scaffold-content.mjs` 根据 `framework/framework.json` 自动生成，请修改 JSON 后重新生成。',
+  '> ⚠️ 本文件由 `node scripts/scaffold-content.mjs` 根据 `framework/framework.json` 自动生成。',
   '',
   `**目标读者**：${fw.audience}`,
   '',
-  '**写作原则**',
+  '**课程设计原则**',
   '',
   ...fw.principles.map((p) => `- ${p}`),
   '',
-  '图例：📊 交互组件 · 🎬 Remotion 动效讲解',
+  '图例：🎮/📊 深度交互游戏与实验台 · 🎬 Remotion 定制视觉动效',
   '',
   ...GROUPS.flatMap((g) => [
     '---',
@@ -163,19 +155,18 @@ const outline = [
     '',
     ...g.chapters.flatMap((id) => {
       const ch = fw.chapters.find((c) => c.id === id);
-      const num = parseInt(id, 10);
       return [
-        `## ${ch.title}`,
+        `## ${ch.title}（难度：${stars(ch.difficulty)}）`,
         '',
         `> ${ch.description}`,
         '',
-        ...ch.sections.flatMap((s, i) => [
-          `### ${num}.${i + 1} ${s.title}`,
+        ...ch.sections.flatMap((s) => [
+          `### ${s.title}（${stars(s.difficulty ?? ch.difficulty)}）`,
           '',
           `_${s.description}_`,
           '',
-          ...s.points.map((p, j) => `- ${num}.${i + 1}.${j + 1} ${p}`),
-          ...s.components.map((c) => `- 📊 \`<${c.name} />\` — ${c.idea}`),
+          ...s.points.map((p) => `- ${p}`),
+          ...s.components.map((c) => `- 🎮 \`<${c.name} />\` — ${c.idea}`),
           ...s.motions.map((m) => `- 🎬 \`${m.id}\` — ${m.idea}`),
           '',
         ]),
@@ -186,4 +177,3 @@ const outline = [
 write(path.join(root, 'outline.md'), outline, { overwrite: true });
 
 console.log(`✔ scaffold 完成，写入 ${created.length} 个文件`);
-for (const f of created) console.log('  ·', f);

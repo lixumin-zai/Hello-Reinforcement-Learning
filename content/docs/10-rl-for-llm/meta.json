@@ -1,0 +1,10 @@
+{
+  "title": "第 10 章：强化学习与大语言模型——RLHF、DPO 与 GRPO",
+  "icon": "MessageSquare",
+  "pages": [
+    "index",
+    "02-rlhf-and-reward-hacking",
+    "03-dpo-derivation",
+    "04-grpo-and-engineering"
+  ]
+}

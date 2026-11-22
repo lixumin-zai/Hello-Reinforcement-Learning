@@ -1,0 +1,9 @@
+{
+  "title": "第 9 章：连续控制、世界模型与蒙特卡洛树搜索",
+  "icon": "TreePine",
+  "pages": [
+    "index",
+    "02-dyna-and-world-models",
+    "03-mcts-alphazero"
+  ]
+}

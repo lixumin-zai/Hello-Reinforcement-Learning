@@ -1,0 +1,10 @@
+{
+  "title": "第 8 章：策略梯度、Actor-Critic 与 PPO",
+  "icon": "Mountain",
+  "pages": [
+    "index",
+    "02-actor-critic-gae",
+    "03-trust-region-trpo",
+    "04-ppo-deep-dive"
+  ]
+}

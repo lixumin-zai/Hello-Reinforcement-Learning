@@ -1,0 +1,29 @@
+---
+title: '7.3 Double DQN、Dueling 网络与优先经验回放 (PER)'
+description: '精准修复 DQN 三大短板：消除高估、解耦状态价值与动作优势、把算力花在高 TD 误差的惊喜样本上。'
+icon: 'GitBranch'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- Double DQN 极简改动：在线网选动作、目标网估值
+- Dueling 架构 Q = V(s) + (A(s,a) - mean A) 与可辨识性
+- 优先经验回放 (PER)：按 |δ_i|^α 采样与重要性采样权重修正
+- SumTree O(log N) 高效采样结构
+
+## 规划交互
+
+- **`<DuelingCarViz />`**：Dueling 网络直道/弯道情景可视化：对比前方无障碍直道（仅需 V(s)）与迎面来车变道（A(s,a) 剧烈分化）的价值合成
+
+<Cards>
+  <Card title="下一节：7.4 分布式 RL (C51) 与 Rainbow 集大成" href="/docs/07-dqn/04-rainbow" />
+</Cards>

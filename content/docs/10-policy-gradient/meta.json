@@ -1,9 +1,0 @@
-{
-  "title": "第十部分：策略梯度",
-  "icon": "Mountain",
-  "pages": [
-    "index",
-    "02-reinforce",
-    "03-actor-critic"
-  ]
-}

@@ -1,0 +1,33 @@
+---
+title: '2.2 ε-贪心、乐观初值与非平稳环境追踪'
+description: '如何用最简单的随机探索、乐观初值与指数加权步长应对静态与动态变化的环境。'
+icon: 'Shuffle'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★☆☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- ε-贪心算法与 ε 衰减策略
+- 乐观初始值 (Optimistic Initial Values) 的隐式遍历原理
+- 非平稳环境与常数步长 α 的指数近因加权推导
+- 完整 Python / NumPy 实验代码
+
+## 规划交互
+
+- **`<BanditStrategyRace />`**：百轮蒙特卡洛赛车场：实时调节 ε、初始值 Q₁、步长 α 与漂移速度，同屏绘制 4 条最优动作率与平均奖励曲线
+
+## 规划动效
+
+- 🎬 **`epsilon-coin-split`**：复古街机续篇：抛硬币分流探索与利用双通道，结合历史样本权重随 (1-α)^k 指数衰减的波纹动画
+
+<Cards>
+  <Card title="下一节：2.3 UCB、Thompson 采样与梯度老虎机" href="/docs/02-bandits/03-ucb-thompson-gradient" />
+</Cards>

@@ -1,0 +1,34 @@
+---
+title: '7.1 线性函数近似、瓦片编码与致命三元组'
+description: '当状态无穷多时如何泛化？亲手开一次山地车，理解半梯度下降与 Baird 反例为何发散。'
+icon: 'Spline'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 从查表到参数化近似 v̂(s, w) 与均方价值误差
+- 半梯度 TD(0) 为什么不是真正的梯度下降
+- 瓦片编码 (Tile Coding) 与粗编码的局部泛化特性
+- 致命三元组 (Deadly Triad)：函数近似 + 自举 + 离策略
+
+## 规划交互
+
+- **`<MountainCarGame />`**：真实物理小游戏《山地车 Mountain Car》：键盘 ←/→ 亲自驾驶体验倒车蓄力，一键切换瓦片编码 RL 策略冲顶并查看 2D (位置×速度) 价值热力曲面
+- **`<DeadlyTriadSwitch />`**：致命三元组三开关实验台：拨动「函数近似」「自举」「离策略」开关，复现 Baird 7 状态星形反例权重发散曲线
+
+## 规划动效
+
+- 🎬 **`mountain-car-telemetry`**：工程遥测仪表盘风：左侧山地车真实物理摆荡爬坡，右侧瓦片编码多层网格点亮与相空间螺旋轨迹同步绘制
+
+<Cards>
+  <Card title="下一节：7.2 DQN：经验回放与目标网络" href="/docs/07-dqn/02-dqn-core" />
+</Cards>

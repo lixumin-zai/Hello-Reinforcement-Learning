@@ -1,0 +1,29 @@
+---
+title: '7.4 分布式 RL (C51) 与 Rainbow 集大成'
+description: '不再只预测期望标量，而是学习完整回报概率分布；复盘 Rainbow 六大组件消融实验规律。'
+icon: 'Rainbow'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- Noisy Nets 参数空间探索替代 ε-greedy
+- 分布式 RL (C51 / QR-DQN) 与 Cramér / Wasserstein 距离直觉
+- Rainbow 六大改进合体与消融实验启示
+- 基于价值方法面对高维连续动作的根本局限
+
+## 规划交互
+
+- **`<RainbowAblationLab />`**：Rainbow 六组件消融实验板：勾选不同改进组合，查看 C51 多峰回报分布投影与各组件对样本效率的贡献拆解
+
+<Cards>
+  <Card title="下一节：第 8 章：策略梯度、Actor-Critic 与 PPO" href="/docs/08-policy-gradient-ppo" />
+</Cards>

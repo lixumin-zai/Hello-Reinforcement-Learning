@@ -1,0 +1,9 @@
+{
+  "title": "第 3 章：马尔可夫决策过程与 Bellman 方程",
+  "icon": "Network",
+  "pages": [
+    "index",
+    "02-return-and-discount",
+    "03-value-and-bellman"
+  ]
+}

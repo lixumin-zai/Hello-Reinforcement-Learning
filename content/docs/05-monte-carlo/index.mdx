@@ -1,33 +1,33 @@
 ---
-title: '蒙特卡洛预测'
-description: '用平均回报估计 V^π。'
+title: '5.1 蒙特卡洛预测与 21 点 (Blackjack) 牌桌实战'
+description: '没有转移概率表怎么办？玩几局真实 21 点，理解 First-Visit 与 Every-Visit MC 如何从完整回合估计价值。'
 icon: 'Dice5'
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 import { Cards, Card } from 'fumadocs-ui/components/card';
 
-{/* @status: skeleton —— 由 scripts/scaffold-content.mjs 生成，正文待按 WORKFLOW.md 的「文档流」填充 */}
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
 
-<Callout type="warn" title="🚧 本节正在建设中">
-  这是内容框架自动生成的骨架页，下面列出了本节规划的知识点、交互组件与动效讲解。
+<Callout type="warn" title="难度 ★★★☆☆ · 待填充">
+  本节正在按重构计划逐章深度编写。
 </Callout>
 
-## 本节知识点
+## 核心知识点
 
-- 从经验中学习
-- 首次访问 vs 每次访问 MC
-- 增量式均值
-- 21 点（Blackjack）示例
+- 无模型学习的第一步：用经验样本平均代替全期望
+- 首次访问 (First-Visit) vs 每次访问 (Every-Visit) MC
+- 从回合终点反向累加计算回报 G_t 的高效算法
+- 21 点状态建模（玩家点数 × 庄家明牌 × 可用 A）
 
-## 规划的交互组件
+## 规划交互
 
-- **`<MCPredictionDemo />`**：生成一条轨迹，逐步回溯计算每个状态的 G，并更新均值
+- **`<BlackjackGameLab />`**：完整小游戏《21 点赌场实战牌桌》：完整扑克牌 UI、要牌(Hit)/停牌(Stick)、软 A 规则、战绩统计与轨迹回报回溯展示
 
-## 规划的动效讲解
+## 规划动效
 
-- 🎬 **`mc-return-backtrack`**：回合结束后从终点反向累加回报 G 并写入访问过的状态
+- 🎬 **`mc-tabletop-rewind`**：绿绒牌桌时间倒带风：正向发牌走完一局后启动倒带特效，终局胜负筹码沿轨迹逐格倒流累加并写入每个历史状态
 
 <Cards>
-  <Card title="下一节：蒙特卡洛控制" href="/docs/05-monte-carlo/02-mc-control" />
+  <Card title="下一节：5.2 蒙特卡洛控制、GLIE 与最优 21 点策略涌现" href="/docs/05-monte-carlo/02-mc-control" />
 </Cards>

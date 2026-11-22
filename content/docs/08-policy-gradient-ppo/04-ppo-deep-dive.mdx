@@ -1,0 +1,33 @@
+---
+title: '8.4 PPO-Clip 深度详解与 PyTorch 工程实战'
+description: '把复杂的二阶共轭梯度简化为一行 clip()：逐项拆解 PPO 损失函数、关键实现技巧与完整 PyTorch 代码。'
+icon: 'Scissors'
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Cards, Card } from 'fumadocs-ui/components/card';
+
+{/* @status: skeleton —— 待按六段式深度标准填充 */}
+
+<Callout type="warn" title="难度 ★★★★★ · 待填充">
+  本节正在按重构计划逐章深度编写。
+</Callout>
+
+## 核心知识点
+
+- 概率比 r_t(θ) 与 PPO-Clip 目标函数的分情形数学解剖
+- 总损失函数：Policy Clip + Value Loss + Entropy Bonus
+- Mini-batch 多轮复用与优势归一化等核心实现细节
+- 完整可运行的 PyTorch PPO 训练主循环代码
+
+## 规划交互
+
+- **`<PPOOscilloscopeLab />`**：PPO-Clip 交互示波器：实时拖动 Â_t、ε 与 r_t(θ)，在动态 SVG 坐标系上直观观察未截断斜线、截断折线、实时梯度值（死区归零）与策略变化
+
+## 规划动效
+
+- 🎬 **`ppo-clip-oscilloscope`**：精密双通道示波器风：左右双屏分示 Â_t &gt; 0 与 Â_t &lt; 0，概率比光点撞上 1±ε 机械限位挡板时火花提示且梯度表归零
+
+<Cards>
+  <Card title="下一节：第 9 章：连续控制、世界模型与蒙特卡洛树搜索" href="/docs/09-control-and-planning" />
+</Cards>
